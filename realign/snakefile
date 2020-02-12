@@ -12,31 +12,26 @@ rule all:
         metrics=expand("dedup/{sample}.metrics.txt", sample=sample_names),
         index=expand("dedup/{sample}.bam.bai", sample=sample_names)
 
-#rule all:
-#    input:
-#    	expand("/shahlab/archive/misc/sbeatty/todo-130/realign/fastq/{sample}_R1.fastq", sample=sample_names),
-#    	expand("/shahlab/archive/misc/sbeatty/todo-130/realign/fastq/{sample}_R2.fastq", sample=sample_names)
-
-#rule all:
-#	input:
-#		expand("/shahlab/archive/misc/sbeatty/todo-130/realign/sorted_bam/{sample}.sorted.bam", sample=sample_names)
-
 rule sort_name:
-	input:
-		lambda wildcards: sample_dic[wildcards.sample]
-	output:
-		"sorted_bam/{sample}.sorted.bam"
-	shell:
-		"samtools sort -n -o {output} -O bam -@ 20 {input}"
+    input:
+        lambda wildcards: sample_dic[wildcards.sample]
+    output:
+        "sorted_bam/{sample}.sorted.bam"
+    log:
+         "logs/sort_name/{sample}.log"
+    shell:
+        "samtools sort -n -o {output} -O bam -@ 20 {input}"
 
 rule bam_to_fastq:
-	input:
-		"sorted_bam/{sample}.sorted.bam"
-	output:
-		fastq1="reads/{sample}_R1.fastq", 
-		fastq2="reads/{sample}_R2.fastq"
-	shell:
-		"bedtools bamToFastq -i {input} -tags -fq {output.fastq1} -fq2 {output.fastq2}"
+    input:
+        "sorted_bam/{sample}.sorted.bam"
+    output:
+        fastq1="reads/{sample}_R1.fastq", 
+        fastq2="reads/{sample}_R2.fastq"
+    log:
+        "logs/bam_to_fastq/{sample}.log"
+    shell:
+        "bedtools bamToFastq -i {input} -tags -fq {output.fastq1} -fq2 {output.fastq2}"
 
 rule bwa_mem:
     input:
@@ -49,25 +44,16 @@ rule bwa_mem:
         index="/shahlab/pipelines/reference/GRCh37-lite.fa",
         extra=r"-M -R '@RG\tID:{sample}\tSM:{sample}'",
         sort="samtools",             # Can be 'none', 'samtools' or 'picard'.
-        sort_order="queryname",  # Can be 'queryname' or 'coordinate'.
+        sort_order="coordinate",  # Can be 'queryname' or 'coordinate'.
         sort_extra="-m 10G"            # Extra args for samtools/picard.
     threads: 18
     wrapper:
         "file:wrappers/bwa_mem"
 
-rule samtools_sort:
-    input:
-        "mapped/{sample}.bam"
-    output:
-        "sorted_reads/{sample}.bam"
-    shell:
-        "samtools sort -T sorted_reads/{wildcards.sample} "
-        "-@ 20 -O bam -o {output} {input}"
-
 #3) picard markdups
 rule mark_duplicates:
     input:
-        "sorted_reads/{sample}.bam"
+        "mapped/{sample}.bam"
     output:
         bam="dedup/{sample}.bam",
         metrics="dedup/{sample}.metrics.txt"
