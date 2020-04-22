@@ -103,14 +103,14 @@ clinvar_column_specs <- cols(
 
 cores <- args[str_detect(args,"--cores")] %>% str_replace("--cores=","")
 if(length(cores) == 0){
-  cores <- 1
+	cores <- 1
 } else {
-  cores <- as.numeric(cores)
+	cores <- as.numeric(cores)
 }
 
 rangeordf <- args[str_detect(args,"--rangeordf")] %>% str_replace("--rangeordf=","")
 if(length(rangeordf) == 0){
-  rangeordf <- "df"
+	rangeordf <- "df"
 }
 
 target_file <- args[str_detect(args,"--targetfile")] %>% str_replace("--targetfile=","")
@@ -118,11 +118,19 @@ output_file <- args[str_detect(args,"--outputfile")] %>% str_replace("--outputfi
 target_file_type <-gsub( "vcf.gz","vcf",basename(target_file)) %>% str_split("\\.") %>% unlist() %>% last()
 load_parsed_reference_data <- args[str_detect(args,"--loadreference")] %>% str_replace("--loadreference=","")
 
-load_parsed_reference_data <- FALSE
+if(length(load_parsed_reference_data) == 0){
+  load_parsed_reference_data <- FALSE
+}
+
+if(load_parsed_reference_data == TRUE & c( !file.exists("/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat_ranges.Rdata") |
+  !file.exists("/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat.Rdata") |
+  !file.exists("/scratch/shahlab_tmp/sbeatty/reference/genecode_reference.Rdata") |
+  !file.exists("/scratch/shahlab_tmp/sbeatty/reference/gencode_reference_dat_ranges.Rdata") )){
+  load_parsed_reference_data <- FALSE
+}
+
+
 if(load_parsed_reference_data == FALSE){
-
-
-
   clinvar_reference_dat <- read_tsv("/shahlab/archive/misc/sbeatty/reference/variant_summary.txt", col_types=clinvar_column_specs)
   clinvar_reference_dat <- clinvar_reference_dat[c(clinvar_reference_dat[,"Assembly"] == "GRCh37"),] %>% data.frame
   clinvar_reference_dat[,"inferred_strand"] <- NA
@@ -159,7 +167,7 @@ if(load_parsed_reference_data == FALSE){
   save(clinvar_reference_dat_ranges,file="/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")
   save(clinvar_reference_dat, file="/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat.Rdata")
   save(gencode_reference_dat, file="/scratch/shahlab_tmp/sbeatty/reference/genecode_reference.Rdata")
-  save(gencode_reference_dat_ranges, file="gencode_reference_dat_ranges.Rdata")
+  save(gencode_reference_dat_ranges, file="/scratch/shahlab_tmp/sbeatty/reference/gencode_reference_dat_ranges.Rdata")
 
 } else {
   load("/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")
@@ -202,8 +210,19 @@ if(target_file_type == "vcf"){
   target_dat_df[,"genecode_gene_name"] <- NA
   target_dat_df[,"genecode_strand"] <- NA
 } else if (target_file_type == "tsv"){
+	caller <- ".variant_caller"
+	target_dat_df <- read_tsv(paste(target_file), col_types=tsv_column_spec)
+	target_dat_df <- target_dat_df %>% data.frame
+  	names(target_dat_df) <- gsub("chromosome", "chr", names(target_dat_df))
+  	names(target_dat_df) <- gsub("stop", "end", names(target_dat_df))
+  	target_dat_df[,"genecode_gene_name"] <- NA
+	target_dat_df[,"genecode_strand"] <- NA
+	target_dat_df <- target_dat_df[!is.na(target_dat_df$chr),]
+	target_dat_ranges <- makeGRangesFromDataFrame(target_dat_df, 
+       seqnames.field ="chr" , start.field="start", end.field="end", keep.extra.columns=TRUE)  	
+} else if (target_file_type == "csv"){
   caller <- ".variant_caller"
-  target_dat_df <- read_tsv(paste(target_file), col_types=tsv_column_spec)
+  target_dat_df <- read_csv(paste(target_file), col_types=tsv_column_spec)
   target_dat_df <- target_dat_df %>% data.frame
     names(target_dat_df) <- gsub("chromosome", "chr", names(target_dat_df))
     names(target_dat_df) <- gsub("stop", "end", names(target_dat_df))
@@ -211,8 +230,7 @@ if(target_file_type == "vcf"){
   target_dat_df[,"genecode_strand"] <- NA
   target_dat_df <- target_dat_df[!is.na(target_dat_df$chr),]
   target_dat_ranges <- makeGRangesFromDataFrame(target_dat_df, 
-       seqnames.field ="chr" , start.field="start", end.field="end", keep.extra.columns=TRUE)
-    
+       seqnames.field ="chr" , start.field="start", end.field="end", keep.extra.columns=TRUE)   
 } 
 
 gencode_matches <- findOverlaps(target_dat_ranges, gencode_reference_dat_ranges, type="any")
@@ -239,20 +257,20 @@ clin_var_matches <- clin_var_matches[!c(clin_var_matches$query_ref != clin_var_m
 if(nrow(clin_var_matches) > 0){
 
 # include exact matches
-  exact_matches <- c(clin_var_matches[,"query_alt"] == clin_var_matches[,"subject_alt"])
+	exact_matches <- c(clin_var_matches[,"query_alt"] == clin_var_matches[,"subject_alt"])
 
 # also include multi basepair variants of the same length
-  indel_length_matches <- c(nchar(clin_var_matches[,"query_alt"]) == nchar(clin_var_matches[,"subject_alt"]) & nchar(clin_var_matches[,"query_alt"]) > 1)
+	indel_length_matches <- c(nchar(clin_var_matches[,"query_alt"]) == nchar(clin_var_matches[,"subject_alt"]) & nchar(clin_var_matches[,"query_alt"]) > 1)
 
-  clin_var_matches <-  clin_var_matches[exact_matches | indel_length_matches,]
+	clin_var_matches <-  clin_var_matches[exact_matches | indel_length_matches,]
 
-  target_dat_df[,"unique_id"] <- paste0(target_dat_df$chr,"@",target_dat_df$end)
-  clinvar_reference_dat$unique_id <- NA
-  clinvar_reference_dat$unique_id[clin_var_matches$subjectHits] <- target_dat_df$unique_id[clin_var_matches$queryHits]
-  names(target_dat_df) <- gsub(tolower("start"), "start.variant_caller", names(target_dat_df))
-  names(target_dat_df) <- gsub(tolower("end"), "end.variant_caller", names(target_dat_df))
-  names(target_dat_df) <- gsub(tolower("chr"), "chr.variant_caller", names(target_dat_df))
-  target_dat_clinvar_df <- left_join(data.frame(target_dat_df), data.frame(clinvar_reference_dat), by="unique_id", suffix=c(paste(caller),"clinvar"), KEEP=TRUE)
+	target_dat_df[,"unique_id"] <- paste0(target_dat_df$chr,"@",target_dat_df$end)
+	clinvar_reference_dat$unique_id <- NA
+	clinvar_reference_dat$unique_id[clin_var_matches$subjectHits] <- target_dat_df$unique_id[clin_var_matches$queryHits]
+	names(target_dat_df) <- gsub(tolower("start"), "start.variant_caller", names(target_dat_df))
+	names(target_dat_df) <- gsub(tolower("end"), "end.variant_caller", names(target_dat_df))
+	names(target_dat_df) <- gsub(tolower("chr"), "chr.variant_caller", names(target_dat_df))
+	target_dat_clinvar_df <- left_join(data.frame(target_dat_df), data.frame(clinvar_reference_dat), by="unique_id", suffix=c(paste(caller),"clinvar"), KEEP=TRUE)
   } else {
     target_dat_clinvar_df <- target_dat_df
   }
@@ -268,7 +286,7 @@ names(target_dat_clinvar_df) <- gsub("chr.variant_caller","chr", names(target_da
 
 joined_ranges <- makeGRangesFromDataFrame(data.frame(target_dat_clinvar_df), seqnames.field ="chr" , start.field='start', end.field='end', keep.extra.columns=TRUE)
 if(rangeordf == "range"){
-  save(joined_ranges,file=output_file)  
+	save(joined_ranges,file=output_file)	
 } else {
-  fwrite(target_dat_clinvar_df, file=output_file)
+	fwrite(target_dat_clinvar_df, file=output_file)
 }
