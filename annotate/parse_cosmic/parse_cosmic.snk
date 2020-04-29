@@ -7,7 +7,7 @@ cosmic_reference_data_path = "/scratch/shahlab_tmp/sbeatty/reference/CosmicMutan
 
 rule all:
 	input:
-		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
+		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
 
 rule extract_coordinates_vector:
 	input:
@@ -76,7 +76,20 @@ rule parse_cosmic_mutation_types:
 		mem="8.0G",
 		cpus="40"
 	output:
-		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
+		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
 	run:
 		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/simplify_cosmic_variants.R --cosmic_reference_data={input} --cpu_count={params.cpus} --output_file={output}")
+
+
+rule reduce_cosmic:
+	input:
+		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
+	params:
+		mem="10.0G",
+		cpus="20"
+	output:
+		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
+	run:
+		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/reduce_cosmic.R.R --cosmic_reference_data={input} --cpu_count={params.cpus} --output_file={output}")
+
 
