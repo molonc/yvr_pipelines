@@ -3,15 +3,15 @@
 # in cases where clinvar has a different reference variant than the sample 
 # reference, and the variants are 1 bp, the clinvar match will be ignored
 .libPaths("/ssd/sda1/sbeatty/software/miniconda3/lib/R/library")
-
-require("stringr")
-require("readr")
-require("dplyr")
-require("parallel")
-require("VariantAnnotation")
-require("data.table")
 options(echo=TRUE)
-options(verbose=TRUE)
+options(verbose=FALSE)
+require("stringr", quietly=TRUE)
+require("readr", quietly=TRUE)
+require("dplyr", quietly=TRUE)
+require("parallel", quietly=TRUE)
+require("VariantAnnotation", quietly=TRUE)
+require("data.table", quietly=TRUE)
+
 args = commandArgs(trailingOnly=TRUE)
 
 # supply column specifications to readr greatly speeds up file reading
@@ -99,35 +99,31 @@ clinvar_column_specs <- cols(
   VariationID = col_double()
 )
 
-# Example command line inputs
-#args <- c("--loadreference=FALSE", "--targetfile=clinvar_in/GERM_STRE_INDEL_SA1267NC.vcf.gz", "--outputfile=testfile.csv", "--cores=30", "--rangeordf=range")
-
-
+if(length(args) == 0){
+args <- "Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile=/scratch/shahlab_tmp/sbeatty/ind231/clinvar_in/GERM_STRE_INDEL_SA1228T.vcf.gz --outputfile=clinvar_added/GERM_STRE_INDEL_SA1228T.clinvar.csv --loadreference=TRUE"
+args <- str_split(args," ") %>% unlist
+}
 cores <- args[str_detect(args,"--cores")] %>% str_replace("--cores=","")
 if(length(cores) == 0){
-	cores <- 1
+  cores <- 1
 } else {
-	cores <- as.numeric(cores)
+  cores <- as.numeric(cores)
 }
 
 rangeordf <- args[str_detect(args,"--rangeordf")] %>% str_replace("--rangeordf=","")
 if(length(rangeordf) == 0){
-	rangeordf <- "df"
+  rangeordf <- "df"
 }
 
 target_file <- args[str_detect(args,"--targetfile")] %>% str_replace("--targetfile=","")
 output_file <- args[str_detect(args,"--outputfile")] %>% str_replace("--outputfile=","")
-#if(length(args) == 0){
-#  target_file <- "clinvar_in/GERM_SNV_INTERSECT_SA1261NC.tsv"
-#  output_file <- "genecode_clinvar_annotated/GERM_SNV_INTERSECT_SA1261NC.clinvar.gencode.csv"
-#  load_parsed_reference_data <- TRUE
-#}
-#target_file <- "/scratch/shahlab_tmp/danlai/APARICIO-590/merged_snvs/germline/SA1260T_museq_strelka_intersect_snv.tsv"
-
-target_file_type <-gsub( "vcf.gz","vcf",basename(target_file)) %>% str_split("\\.") %>% unlist() %>% last()
-#target_file <- "/scratch/shahlab_tmp/danlai/APARICIO-590/merged_snvs/germline/SA1260T_museq_strelka_intersect_snv.tsv"
 load_parsed_reference_data <- args[str_detect(args,"--loadreference")] %>% str_replace("--loadreference=","")
 
+
+
+target_file_type <-gsub( "vcf.gz","vcf",basename(target_file)) %>% str_split("\\.") %>% unlist() %>% last()
+
+#load_parsed_reference_data <- TRUE
 if(length(load_parsed_reference_data) == 0){
   load_parsed_reference_data <- FALSE
 }
@@ -143,15 +139,14 @@ if(load_parsed_reference_data == TRUE & c( !file.exists("/scratch/shahlab_tmp/sb
 if(load_parsed_reference_data == FALSE){
   clinvar_reference_dat <- read_tsv("/shahlab/archive/misc/sbeatty/reference/variant_summary.txt", col_types=clinvar_column_specs)
   clinvar_reference_dat <- clinvar_reference_dat[c(clinvar_reference_dat[,"Assembly"] == "GRCh37"),] %>% data.frame
-  clinvar_reference_dat[,"inferred_strand"] <- NA
-
+ 
 # elminate records with a start position less than zero. As of April 21
 # 2019 this applies to only 2 results
 
   clinvar_reference_dat <- clinvar_reference_dat[!c(clinvar_reference_dat$Stop < 0),]
   clinvar_reference_dat <- clinvar_reference_dat[!is.na(clinvar_reference_dat$Chromosome),]
-  clinvar_reference_dat[,"inferred_ref"] <- NA
-  clinvar_reference_dat[,"inferred_alt"] <- NA
+  #clinvar_reference_dat[,"inferred_ref"] <- NA
+  #clinvar_reference_dat[,"inferred_alt"] <- NA
   clinvar_reference_dat_ranges <-  makeGRangesFromDataFrame(clinvar_reference_dat, seqnames.field ="Chromosome" , start.field="Start", end.field="Stop", keep.extra.columns=TRUE)
 
     .gene_from_add_info <- function(x){
@@ -190,46 +185,27 @@ if(load_parsed_reference_data == FALSE){
 # converting a single tab (ex INFO) is very slow
 # function below is > 1000x fold faster
 
-genome_range_to_dataframe <- function(genome_range){
-  df <- genome_range
-  df_rowRanges <- rowRanges(df)
-  range_start <- ranges(df)@start
-  range_end <- ranges(df)@start
-  range_width <- ranges(df)@width
-  df_seqnames <-  as.character(seqnames(df))
-  df_elementMetadata <- elementMetadata(rowRanges(df))
-  strand_info <- as.character(df_rowRanges@strand)
-  df_paramRangeID <- as.character(df_elementMetadata[,"paramRangeID"])
-  df_REF <- as.character(df_elementMetadata[,"REF"])
-  df_ALT <- rownames(df_elementMetadata) %>% str_sub(start=-1) %>% as.character
-  df_QUAL <- as.character(df_elementMetadata[,"QUAL"])
-  df_FILTER <- as.character(df_elementMetadata[,"FILTER"])
-  df_out <- data.frame(chr=df_seqnames, pos=range_start, start = range_start,
-    end=range_end, width=range_width, strand=strand_info,
-    paramRangeID=df_paramRangeID, REF=df_REF, ALT=df_ALT, QUAL=df_QUAL, Filter=df_FILTER)
-  df_out
-}
-
+ source("/scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/core_functions.R")
 
 if(target_file_type == "vcf"){
   target_dat <- readVcf(paste(target_file), genome="hg19")
   caller <- ".variant_caller"
   target_dat_ranges <- target_dat
-  target_dat_df <- genome_range_to_dataframe(target_dat)
+  target_dat_df <- genome_range_to_dataframe(target_dat, extract_reads=TRUE)
   names(target_dat_df) <- gsub("stop", "end", names(target_dat_df))
   target_dat_df[,"genecode_gene_name"] <- NA
   target_dat_df[,"genecode_strand"] <- NA
 } else if (target_file_type == "tsv"){
-	caller <- ".variant_caller"
-	target_dat_df <- read_tsv(paste(target_file), col_types=tsv_column_spec)
-	target_dat_df <- target_dat_df %>% data.frame
-  	names(target_dat_df) <- gsub("chromosome", "chr", names(target_dat_df))
-  	names(target_dat_df) <- gsub("stop", "end", names(target_dat_df))
-  	target_dat_df[,"genecode_gene_name"] <- NA
-	target_dat_df[,"genecode_strand"] <- NA
-	target_dat_df <- target_dat_df[!is.na(target_dat_df$chr),]
-	target_dat_ranges <- makeGRangesFromDataFrame(target_dat_df, 
-       seqnames.field ="chr" , start.field="start", end.field="end", keep.extra.columns=TRUE)  	
+  caller <- ".variant_caller"
+  target_dat_df <- read_tsv(paste(target_file), col_types=tsv_column_spec)
+  target_dat_df <- target_dat_df %>% data.frame
+    names(target_dat_df) <- gsub("chromosome", "chr", names(target_dat_df))
+    names(target_dat_df) <- gsub("stop", "end", names(target_dat_df))
+    target_dat_df[,"genecode_gene_name"] <- NA
+  target_dat_df[,"genecode_strand"] <- NA
+  target_dat_df <- target_dat_df[!is.na(target_dat_df$chr),]
+  target_dat_ranges <- makeGRangesFromDataFrame(target_dat_df, 
+       seqnames.field ="chr" , start.field="start", end.field="end", keep.extra.columns=TRUE)   
 } else if (target_file_type == "csv"){
   caller <- ".variant_caller"
   target_dat_df <- read_csv(paste(target_file), col_types=tsv_column_spec)
@@ -248,43 +224,17 @@ target_dat_df[,"genecode_strand"][gencode_matches@from] <- gencode_reference_dat
 
 clin_var_matches <- findOverlaps(target_dat_ranges, clinvar_reference_dat_ranges, type="equal") %>% data.frame
 
-clin_var_matches[,"gencode_strand"] <- target_dat_df[clin_var_matches[,"queryHits"],"genecode_strand"] 
-clin_var_matches[,"query_ref"] <- target_dat_df[clin_var_matches[,"queryHits"],"ref"] 
-clin_var_matches[,"query_alt"] <- target_dat_df[clin_var_matches[,"queryHits"],"alt"] 
+target_ref_column <- names(target_dat_df)[str_detect(names(target_dat_df) %>% toupper,"REF")][1]
+target_alt_column <- names(target_dat_df)[str_detect(names(target_dat_df) %>% toupper,"ALT")][1]
 
-clin_var_matches[,"subject_ref"] <- clinvar_reference_dat[clin_var_matches[,"subjectHits"],"ReferenceAllele"] 
-
-clin_var_matches[,"subject_alt"] <- clinvar_reference_dat[clin_var_matches[,"subjectHits"],"AlternateAllele"] 
-
-
-# eliminate results where the snv reference for clinvar and museq vary
-clin_var_matches <- clin_var_matches[!c(clin_var_matches$query_ref != clin_var_matches$subject_ref & nchar(clin_var_matches$query_ref) == nchar(clin_var_matches$subject_ref) & nchar(clin_var_matches$query_ref) ==1 ),]
-
-
-
-substitute_column_name <- function(in_name,out_name, input_data){
-  target_data_column_names <- names(input_data)
-  matches <- which(target_data_column_names == in_name)
-  if(length(matches) == 1){
-    target_data_column_names[matches] <- out_name
-  }
-  target_data_column_names
-}
+clin_var_matches <- extract_exact_matches(matches_df =clin_var_matches, query_df=target_dat_df, query_ref_allele_column=target_ref_column, query_alt_allele_column=target_alt_column, subject_df=clinvar_reference_dat,subject_ref_allele_column="ReferenceAllele",  subject_alt_allele_column="AlternateAllele")
 
 
 if(nrow(clin_var_matches) > 0){
 
-# include exact matches
-	exact_matches <- c(clin_var_matches[,"query_alt"] == clin_var_matches[,"subject_alt"])
-
-# also include multi basepair variants of the same length
-	indel_length_matches <- c(nchar(clin_var_matches[,"query_alt"]) == nchar(clin_var_matches[,"subject_alt"]) & nchar(clin_var_matches[,"query_alt"]) > 1)
-
-	clin_var_matches <-  clin_var_matches[exact_matches | indel_length_matches,]
-
-	target_dat_df[,"unique_id"] <- paste0(target_dat_df$chr,"@",target_dat_df$end)
-	clinvar_reference_dat$unique_id <- NA
-	clinvar_reference_dat$unique_id[clin_var_matches$subjectHits] <- target_dat_df$unique_id[clin_var_matches$queryHits]
+  target_dat_df[,"unique_id"] <- paste0(target_dat_df$chr,"@",target_dat_df$end)
+  clinvar_reference_dat$unique_id <- NA
+  clinvar_reference_dat$unique_id[clin_var_matches$subjectHits] <- target_dat_df$unique_id[clin_var_matches$queryHits]
   names(clinvar_reference_dat) <- substitute_column_name("Chromosome", "chr.clinvar", clinvar_reference_dat)
   names(clinvar_reference_dat) <- substitute_column_name("Start", "start.clinvar", clinvar_reference_dat)
   names(clinvar_reference_dat) <- substitute_column_name("Stop", "stop.clinvar", clinvar_reference_dat)
@@ -293,10 +243,8 @@ if(nrow(clin_var_matches) > 0){
   names(target_dat_df) <- substitute_column_name("start", "start.variant_caller", target_dat_df)
   names(target_dat_df) <- substitute_column_name("end", "end.variant_caller", target_dat_df)
   names(target_dat_df) <- substitute_column_name("chr", "chr.variant_caller", target_dat_df)
-	#names(target_dat_df) <- gsub(tolower("start"), "start.variant_caller", names(target_dat_df))
-	#names(target_dat_df) <- gsub(tolower("end"), "end.variant_caller", names(target_dat_df))
-	#names(target_dat_df) <- gsub(tolower("chr"), "chr.variant_caller", names(target_dat_df))
-	target_dat_clinvar_df <- left_join(data.frame(target_dat_df), data.frame(clinvar_reference_dat), by="unique_id", suffix=c(paste(caller),"clinvar"), KEEP=TRUE)
+
+  target_dat_clinvar_df <- left_join(data.frame(target_dat_df), data.frame(clinvar_reference_dat), by="unique_id", suffix=c(paste(caller),"clinvar"), KEEP=TRUE)
   } else {
     target_dat_clinvar_df <- target_dat_df
   }
@@ -304,19 +252,17 @@ if(nrow(clin_var_matches) > 0){
 
 #target_dat_clinvar_df <- target_dat_clinvar_df[,!c(names(target_dat_clinvar_df) %in% c("Chromosome", "Start", "Stop"))] %>% head
 names(target_dat_clinvar_df) <- substitute_column_name("ALT","alt", target_dat_clinvar_df)
+names(target_dat_clinvar_df) <- substitute_column_name("REF","ref", target_dat_clinvar_df)
 names(target_dat_clinvar_df) <- substitute_column_name("start.variant_caller","start", target_dat_clinvar_df)
 names(target_dat_clinvar_df) <- substitute_column_name("end.variant_caller","end", target_dat_clinvar_df)
 names(target_dat_clinvar_df) <- substitute_column_name("chr.variant_caller","chr", target_dat_clinvar_df)
 reordered_columns  <- c("chr", "start", "end",names(target_dat_clinvar_df)[!c(names(target_dat_clinvar_df) %in% c("chr", "start", "end"))])
-#target_dat_clinvar_df <- 
-
 
 target_dat_clinvar_df <- target_dat_clinvar_df[,reordered_columns]
-#which(c(names(target_dat_clinvar_df) == 'stop' | names(target_dat_clinvar_df) == 'end') == TRUE)
 
-joined_ranges <- makeGRangesFromDataFrame(target_dat_clinvar_df, seqnames.field ="chr" , start.field='start', end.field='end', keep.extra.columns=TRUE)
 if(rangeordf == "range"){
-	save(joined_ranges,file=output_file)	
+  joined_ranges <- makeGRangesFromDataFrame(target_dat_clinvar_df, seqnames.field ="chr" , start.field='start', end.field='end', keep.extra.columns=TRUE)
+  save(joined_ranges,file=output_file)  
 } else {
-	fwrite(target_dat_clinvar_df, file=output_file)
+  fwrite(target_dat_clinvar_df, file=output_file)
 }

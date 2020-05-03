@@ -5,11 +5,15 @@ options(echo=TRUE)
 options(verbose=TRUE)
 args = commandArgs(trailingOnly=TRUE)
 
-library("stringr")
-library("dplyr")
-library("readr")
-library("VariantAnnotation")
-library("data.table")
+require("stringr", quietly=TRUE)
+require("readr", quietly=TRUE)
+require("dplyr", quietly=TRUE)
+require("parallel", quietly=TRUE)
+require("VariantAnnotation", quietly=TRUE)
+require("data.table", quietly=TRUE)
+options(echo=TRUE)
+options(verbose=FALSE)
+args = commandArgs(trailingOnly=TRUE)
  
 csv_column_types_for_fread <- 
 c(
@@ -64,10 +68,13 @@ c("character", "character", "character", "double", "double", "character" ,"chara
 
 #args <- c("--random", "--targetfile=/scratch/shahlab_tmp/sbeatty/ind231/genecode_clinvar_annotated/GERM_SNV_INTERSECT_SA1228N.clinvar.gencode.csv", "--outputfile=genecode_comsic_snpeff_annotated/add_exon_test.csv", "--chr_name=chr", "--start_name=start", "--end_name=end")
 
-
-target_file <- args[str_detect(args,"--targetfile")] %>% str_replace("--targetfile=","")
+if(length(args) == 0){
+args <- "Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/flag_exons.R --target_file=cosmic_added/GERM_STRE_INDEL_SA1228T.clinvar.cosmic.csv --outputfile=exons_flagged/GERM_STRE_INDEL_SA1228T.clinvar.cosmic.exons.csv"
+args <- str_split(args," ") %>% unlist
+}
+target_file <- args[str_detect(args,"--target_file")] %>% str_replace("--target_file=","")
 output_file <- args[str_detect(args,"--outputfile")] %>% str_replace("--outputfile=","")
-#target_file <- "cosmic_added/GERM_SNV_INTERSECT_SA1228T.clinvar.cosmic.csv"
+#target_file <- "cosmic_added/cosmic_added/GERM_SNV_INTERSECT_SA1228N.clinvar.cosmic.csv"
 target_file_type <-gsub( "vcf.gz","vcf",basename(target_file)) %>% str_split("\\.") %>% unlist() %>% last()
 
 if(length(which(str_detect(args, "--chr_name") == TRUE)) == 1){
@@ -116,6 +123,8 @@ if(length(name_matches) > 1){
 match_vector <- names(sample_data_df) == "chr"
 match_vector[name_matches[1]] <- FALSE
 sample_data_df <- sample_data_df[,names(sample_data_df)[!c(match_vector)]]
+} else {
+  names(sample_data_df) <- gsub("chr.variantcaller","chr", names(sample_data_df))
 }
 
 name_matches <- which(names(sample_data_df) == "start")

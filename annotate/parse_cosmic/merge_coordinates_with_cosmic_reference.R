@@ -56,6 +56,8 @@ cosmic_reference_fread_col_specs <- c(
   HGVSG = "character"
 )
 
+
+
 #args <- c("--random", "--chr_coordinates=/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_chr.csv", "--start_coordinates=/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_start.csv", "--end_coordinates=/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_end.csv", "--cosmic_reference_file=/scratch/shahlab_tmp/sbeatty/reference/cosmic_sample.tsv", "--output_file=/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_parsed.csv")
 chr_coordinates <- args[str_detect(args,"--chr_coordinates")] %>% str_replace("--chr_coordinates=","")
 start_coordinates <- args[str_detect(args,"--start_coordinates")] %>% str_replace("--start_coordinates=","")

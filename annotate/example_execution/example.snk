@@ -1,0 +1,74 @@
+import pandas as pd
+import os
+
+
+file_list = ["/path/to/file1.tsv","/path/to/file2.tsv"]
+
+SAMPLES = ["SA001","SA001"] # unique sample names from the file path
+
+in_names_dict = dict(zip(SAMPLES, file_list))
+
+
+def remove_ext(mystring):  
+	mystring = mystring.replace("vcf.gz","vcf")
+	extension = os.path.splitext(mystring)[1]
+	return mystring.replace(extension, "")
+
+
+rule all:
+	input:
+		expand("cleaned/{sample}.clinvar.cosmic.exons.filtered.cleaned.csv", sample=["SA001","SA002"])
+rule annotate:
+	input:
+		lambda wildcards: in_names_dict[wildcards.sample]
+	params:
+		mem="40.G",
+		cpus="1" 
+	output:
+		"clinvar_added/{sample}.clinvar.csv"
+	run:
+		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile={input} --outputfile={output} --cores=10 --loadreference=TRUE")
+rule add_cosmic:
+	input:
+		sample_data="clinvar_added/{sample}.clinvar.csv",
+		reference_data="/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
+	output:
+		"cosmic_added/{sample}.clinvar.cosmic.csv"
+	params:
+		mem="5.0G",
+		cpus="20" 
+	run:
+		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_cosmic.R --targetfile={input.sample_data} --outputfile={output} --cosmic_reference_file={input.reference_data}")
+rule flag_exons:
+	input:
+		"cosmic_added/{sample}.clinvar.cosmic.csv"
+	output:
+		"exons_flagged/{sample}.clinvar.cosmic.exons.csv"
+	params:
+		mem="5.0G",
+		cpus="20" 
+	run:
+		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/flag_exons.R --target_file={input} --outputfile={output}")
+
+rule filter:
+	input:
+		"exons_flagged/{sample}.clinvar.cosmic.exons.csv"
+	output:
+		"filtered/{sample}.clinvar.cosmic.exons.filtered.csv"
+	params:
+		mem="9.0G",
+		cpus="20" 
+	run:
+		shell("Rscript //scratch/shahlab_tmp/sbeatty/FIT-81/scripts/filter.R --targetfile={input} --outputfile={output} --cpu_count={params.cpus}")
+
+rule clean:
+	input:
+		"filtered/{sample}.clinvar.cosmic.exons.filtered.csv"
+	output:
+		"cleaned/{sample}.clinvar.cosmic.exons.filtered.cleaned.csv"
+	params:
+		mem="8.0G",
+		cpus="20" 
+	run:
+		shell("Rscript //scratch/shahlab_tmp/sbeatty/ind231/scripts/column_parsing.R --target_file={input} --output_file={output} --cpu_count={params.cpus} --chromosome_name=chr --start_name=start --end_name=end")
+

@@ -5,12 +5,11 @@ options(echo=TRUE)
 options(verbose=TRUE)
 args = commandArgs(trailingOnly=TRUE)
 
-library("stringr")
-library("dplyr")
-library("readr")
-library("VariantAnnotation")
-library("data.table")
-
+require("stringr")
+require("dplyr")
+require("readr")
+require("VariantAnnotation")
+require("data.table")
 
 
 cols_tsv <- 
@@ -88,20 +87,19 @@ c(
   biotype = "character"
 )
 
-#args <- c("--random", "--targetfile=genecode_clinvar_annotated/PAIR_STRE_SA1265NC.clinvar.gencode.Rdata", "--outputfile=genecode_comsic_snpeff_annotated/PAIR_STRE_SA1265NC.clinvar.gencode.cosmic.spneff.csv")
+
+source("/scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/core_functions.R")
+
 target_file <- args[str_detect(args,"--targetfile")] %>% str_replace("--targetfile=","")
-#!str_detect(paste(target_file), paste(getwd()))
 output_file <- args[str_detect(args,"--outputfile")] %>% str_replace("--outputfile=","")
 cosmic_reference_file <- args[str_detect(args,"--cosmic_reference_file")] %>% str_replace("--cosmic_reference_file=","")
-#if(length(args) == 0){
-#  target_file <- "genecode_clinvar_annotated/GERM_SNV_INTERSECT_SA1228N.clinvar.gencode.csv"
-#  output_file <- "test.csv"
-#  cosmic_reference_file <- "/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
-#}
-
-target_file_type <-gsub( "vcf.gz","vcf",basename(target_file)) %>% str_split("\\.") %>% unlist() %>% last()
-#target_file <- "genecode_clinvar_annotated/GERM_SNV_INTERSECT_SA1260T.clinvar.gencode.csv"
-#import referenc sequences
+if(length(args) == 0){
+  target_file <- "clinvar_added/GERM_SNV_INTERSECT_SA1228N.clinvar.csv"
+  output_file <- "test.csv"
+  cosmic_reference_file <- "/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"#
+  ncpus <- 20#
+} 
+type <-gsub( "vcf.gz","vcf",basename(target_file)) %>% str_split("\\.") %>% unlist() %>% last()
 gencode_reference_col_types = cols(
   X1 = col_character(),
   X2 = col_character(),
@@ -131,23 +129,17 @@ cosmic_reference_data <- fread(cosmic_reference_file, data.table=FALSE, colClass
 cosmic_reference_data <- cosmic_reference_data[!is.na(cosmic_reference_data$chr),]
 cosmic_ranges <- makeGRangesFromDataFrame(data.frame(cosmic_reference_data),seqnames.field ="chr" , start.field='start', end.field='end')
 
-
-substitute_column_name <- function(in_name,out_name, input_data){
-  target_data_column_names <- names(input_data)
-  matches <- which(target_data_column_names == in_name)
-  if(length(matches) == 1){
-    target_data_column_names[matches] <- out_name
-  }
-  target_data_column_names
-}
-
-
 overlaps <- findOverlaps(joined_ranges, cosmic_ranges, type="equal")
+
 if(length(overlaps) > 0){
+overlaps <- overlaps %>% data.frame
+overlaps <- extract_exact_matches(matches_df =overlaps, query_df=joined_df, query_ref_allele_column="ref", query_alt_allele_column="alt", subject_df=cosmic_reference_data,subject_ref_allele_column="ref",  subject_alt_allele_column="alt", subject_strand_column="Mutation.strand", query_strand_column="genecode_strand")
+
+
   cosmic_reference_data[,"unique_id"] <- NA
-  joined_df <- joined_ranges %>% data.frame
+  #joined_df <- joined_ranges %>% data.frame
   joined_df[,"unique_id"] <- paste0(joined_df$chr,"@",joined_df$end)
-  cosmic_reference_data$unique_id[overlaps@to] <- joined_df$unique_id[overlaps@from]
+  cosmic_reference_data$unique_id[overlaps$subjectHits] <- joined_df$unique_id[overlaps$queryHits]
   output_df <- left_join(joined_df, cosmic_reference_data, by="unique_id", suffix=c(".variantcaller","cosmic"), KEEP=TRUE)
   names(output_df) <- substitute_column_name("seqnames.variantcaller","chr" ,output_df)
   names(output_df) <- substitute_column_name("start.variantcaller","start" ,output_df)
