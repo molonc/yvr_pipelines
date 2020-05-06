@@ -94,10 +94,11 @@ if(!is.na(query_strand_column) & !is.na(subject_strand_column)){
 }
 
 # indel matches 
-indel_match_vector <- c(c(nchar(matches_df$query_alt) > 1) | c(nchar(matches_df$query_ref) > 1) | c(nchar(matches_df$subject_alt) > 1) | c(nchar(matches_df$subject_ref) > 1))
+#indel_match_vector <- c(c(nchar(matches_df$query_alt) > 1) | c(nchar(matches_df$query_ref) > 1) | c(nchar(matches_df$subject_alt) > 1) | c(nchar(matches_df$subject_ref) > 1))
 
 
-matches_df <- matches_df[match_vector | indel_match_vector,]
+#matches_df <- matches_df[match_vector | indel_match_vector,]
+matches_df <- matches_df[match_vector,]
 matches_df
 
 } 
