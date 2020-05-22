@@ -1,0 +1,59 @@
+import pandas as pd
+import os
+import subprocess
+
+SAMPLES = ["A32095_3_lanes_dupsFlagged", "A32102_3_lanes_dupsFlagged", "A32115_3_lanes_dupsFlagged"]
+
+rule all:
+	input:
+		expand("aggregated/{sample}.bam", sample=SAMPLES)
+
+
+def get_read_groups(file_path):
+	path = "samtools view -H input_test/" + file_path + ".bam | grep 'RG' | awk '{print $2}'"
+	read_groups = subprocess.check_output(path, shell=True).decode("utf-8").split("\n")
+	read_groups = pd.Series(read_groups)
+	read_groups = read_groups[read_groups != ""]
+	read_groups = read_groups.str.replace("[A-Z:]","").tolist()
+	return read_groups
+
+
+checkpoint RG_splitting:
+	input:
+		expand("input_test/{sample}.bam", sample=SAMPLES)
+		#read_groups = lambda wildcards: get_read_groups("test_output/"+wildcards.sample + ".bam")
+	output:
+		directory("split_groups/{sample}")
+	params:
+		read_groups = lambda wildcards: get_read_groups(wildcards.sample)
+	run:
+		shell("mkdir split_groups/{wildcards.sample}"),
+		for RG_i in params.read_groups:
+				shell("echo " + RG_i),
+				shell("touch split_groups/{wildcards.sample}/" + RG_i + ".bam")
+
+
+				##### use a lamda function that returns the list of read groups 
+
+rule temp:
+	input:
+		"split_groups/{sample}/{i}.bam"
+	output:
+		"intermediate/{sample}/{i}.bam"
+	shell:
+		"cp {input} {output}"
+
+def get_samples_and_readgroups(wildcards):
+    checkpoint_output = checkpoints.RG_splitting.get(**wildcards).output[0]
+    return expand("intermediate/{sample}/{i}.bam", sample = wildcards.sample, i = glob_wildcards(os.path.join(checkpoint_output,"{i}.bam")).i)   
+
+rule merge:
+    input:
+        get_samples_and_readgroups
+    output:
+        "aggregated/{sample}.bam"
+    log:
+    	"log/{sample}.log"
+    run:
+        shell("echo {input}")
+        shell("touch {output}")
