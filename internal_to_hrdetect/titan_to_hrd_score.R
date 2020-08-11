@@ -11,7 +11,7 @@ args = commandArgs(trailingOnly=TRUE)
 
 
 if(length(args) == 0){
-args <- "Rscript /scratch/shahlab_tmp/sbeatty/yvr_pipelines/internal_to_hrdetect/titan_to_hrd_score.R -target_file=/scratch/shahlab_tmp/danlai/APARICIO-590/PAIR_TITA/titan_pipeline/OUTPUT/RUN/SA1259NC_titan/outputs/results/TASK_11_CALC_OPTIMAL_CLUSTERS_SA1259NC_titan_optimal_clusters.txt -outputfile=banana_test.csv"
+args <- "Rscript /scratch/shahlab_tmp/sbeatty/yvr_pipelines/internal_to_hrdetect/titan_to_hrd_score.R -target_file=/scratch/shahlab_tmp/danlai/APARICIO-590/PAIR_TITA/titan_pipeline/OUTPUT/RUN/SA1259T_titan/outputs/results/TASK_11_CALC_OPTIMAL_CLUSTERS_SA1259T_titan_optimal_clusters.txt -outputfile=input_files/titan/SA1259T.hrd_score.csv"
 args <- str_split(args," ") %>% unlist
 }
 
@@ -42,7 +42,7 @@ output_file <- args[str_detect(args,"-outputfile")] %>% str_replace("-outputfile
 
 df <- tryCatch({get_optimal_clusters(titan_segs_path)}, error=function(e){return(NA)})
 
-if(length(df == 1)){
+if(length(df) == 1){
 	fwrite(data.frame(df), file=paste(output_file))
 	q()
 }

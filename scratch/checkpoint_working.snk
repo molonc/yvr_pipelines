@@ -1,95 +1,221 @@
 import pandas as pd
 import os
 import subprocess
+from snakemake.shell import shell
 
 SAMPLES = ["A32095_3_lanes_dupsFlagged", "A32102_3_lanes_dupsFlagged", "A32115_3_lanes_dupsFlagged"]
-SAMPLES = SAMPLES[0]
-rule all:
-	input:
-		expand("aggregated/{sample}.bam", sample=SAMPLES)
+#SAMPLES = ["A32095_3_lanes_dupsFlagged","A32102_3_lanes_dupsFlagged", "A32115_3_lanes_dupsFlagged", "A32117_3_lanes_dupsFlagged"]
 
+SAMPLES = SAMPLES[0]
+
+rule all:
+    input:
+        expand("bwa_mem/{sample}.bwa_mem.bam", sample=SAMPLES),
+        expand("flagstat/{sample}.merged_bam.flagstat.tsv", sample=SAMPLES), 
+        expand("flagstat/{sample}.input_bam.flagstat.tsv", sample=SAMPLES),
+        expand("input_files/{sample}.bam.bai", sample=SAMPLES),
+        expand("realigned/{sample}.bwa_mem.dedup.bam", sample=SAMPLES),
+        expand("realigned/{sample}.bwa_mem.dedup.bam.bai", sample=SAMPLES)
+        #expand("flagstat/{sample}.input_bam.sorted.flagstat.tsv", sample=SAMPLES)
 
 def get_read_groups(file_path):
-	path = "samtools view -H /scratch/shahlab_tmp/sbeatty/biof-209/input_test/" + file_path + ".bam | grep 'RG' | awk '{print $2}'"
-	read_groups = subprocess.check_output(path, shell=True).decode("utf-8").split("\n")
-	read_groups = pd.Series(read_groups)
-	read_groups = read_groups[read_groups != ""]
-	read_groups = read_groups.str.replace("[A-Z:]","").tolist()
-	return read_groups
+    path = "samtools view -H /scratch/shahlab_tmp/sbeatty/biof-209/input_test/" + file_path + ".bam | grep 'RG' | awk '{print $2}'"
+    read_groups = subprocess.check_output(path, shell=True).decode("utf-8").split("\n")
+    read_groups = pd.Series(read_groups)
+    read_groups = read_groups[read_groups != ""]
+    read_groups = read_groups.str.replace("[A-Z:]","").tolist()
+    return read_groups
 
 rule aggregate_inputs:
-	input:
-		"/scratch/shahlab_tmp/sbeatty/biof-209/input_test/{sample}.bam"
-	output:
-		"input_files/{sample}.bam"
-	shell:
-		"ln -s {input} {output}"
+    input:
+        "/scratch/shahlab_tmp/sbeatty/biof-209/input_test/{sample}.bam"
+    output:
+        "input_files/{sample}.bam"
+    params:
+        mem="10.G",
+        cpus="1" 
+    shell:
+        "ln -s {input} {output}"
+
+rule samtools_index_start:
+    input:
+        "input_files/{sample}.bam"
+    output:
+        "input_files/{sample}.bam.bai"
+    params:
+        mem="8.G",
+        cpus="20" 
+        "" # optional params string
+    shell:
+        "samtools index -@ {params.cpus} {input} {output}"
+
+rule flagstat_inputs:
+    input:
+        "input_files/{sample}.bam"
+    output:
+        "flagstat/{sample}.input_bam.flagstat.tsv"
+    params:
+        mem="10.G",
+        cpus="10" 
+    shell:
+        "samtools flagstat -@ {params.cpus} {input} > {output}"
+
+rule sort_name_1:
+    input:
+        "input_files/{sample}.bam"
+    output:
+        "input_files_sorted/{sample}.bam"
+    params:
+        mem="100.G",
+        cpus="1" 
+    shell:
+        """
+        java -jar /gsc/software/linux-x86_64-centos6/picardtools-2.4.1/picard.jar SortSam \
+        I={input} \
+        O={output} \
+        SORT_ORDER=queryname MAX_RECORDS_IN_RAM=20000000 COMPRESSION_LEVEL=0 VALIDATION_STRINGENCY=LENIENT
+        """
+
 
 checkpoint RG_splitting:
-	input:
-		"input_files/{sample}.bam"
-		#expand("/scratch/shahlab_tmp/sbeatty/biof-209/input_test/{sample}.bam", sample=SAMPLES)
-		#read_groups = lambda wildcards: get_read_groups("test_output/"+wildcards.sample + ".bam")
-	output:
-		directory("split_groups/{sample}")
-	params:
-		read_groups = lambda wildcards: get_read_groups(wildcards.sample)
-	run:
-		if not os.path.exists('split_groups{wildcards.sample}'):
-			shell("mkdir split_groups/{wildcards.sample}")
-		for RG_i in params.read_groups:
-			shell("echo " + RG_i),
-			#shell("cd split_groups/{wildcards.sample}/ ; touch " + RG_i + ".bam")
-			shell("cd split_groups/{wildcards.sample}; samtools split ../../input_files/{wildcards.sample}.bam -f %\!.%.")
-
-
-				##### use a lamda function that returns the list of read groups 
+    input:
+        "input_files_sorted/{sample}.bam"
+        #expand("/scratch/shahlab_tmp/sbeatty/biof-209/input_test/{sample}.bam", sample=SAMPLES)
+        #read_groups = lambda wildcards: get_read_groups("test_output/"+wildcards.sample + ".bam")
+    output:
+        directory("split_groups/{sample}")
+    params:
+        read_groups = lambda wildcards: get_read_groups(wildcards.sample),
+        cpus="20",
+        mem="8.G"
+    run:
+        if not os.path.exists('split_groups/{wildcards.sample}'):
+            shell("mkdir split_groups/{wildcards.sample}")
+        for RG_i in params.read_groups:
+            shell("echo " + RG_i),
+            #shell("cd split_groups/{wildcards.sample}/ ; touch " + RG_i + ".bam")
+            shell("cd split_groups/{wildcards.sample}; samtools split ../../input_files_sorted/{wildcards.sample}.bam -f %\!.%.")
 
 rule sort_name:
     input:
         "split_groups/{sample}/{i}.bam"
     output:
         "sorted_bam/{sample}/{i}.sorted.bam"
+    params:
+        mem="100.G",
+        cpus="1" 
     shell:
         """
         java -jar /gsc/software/linux-x86_64-centos6/picardtools-2.4.1/picard.jar SortSam \
-      	I={input} \
-      	O={output} \
-      	SORT_ORDER=coordinate
-		"""
+        I={input} \
+        O={output} \
+        SORT_ORDER=queryname MAX_RECORDS_IN_RAM=20000000 COMPRESSION_LEVEL=0 VALIDATION_STRINGENCY=LENIENT
+        """
+
+rule bam_to_fastq:
+    input:
+        "sorted_bam/{sample}/{i}.sorted.bam"
+    output:
+        fastq1="reads/{sample}/{i}_R1.fastq", 
+        fastq2="reads/{sample}/{i}_R2.fastq"
+    params:
+        mem="100.G",
+        cpus="1" 
+    log:
+        "logs/bam_to_fastq/{sample}_{i}.log"
+    shell:
+        "bedtools bamtofastq -i {input} -fq {output.fastq1} -fq2 {output.fastq2}"
 
 
-#rule bam_to_fastq:
-#    input:
-#        "sorted_bam/{sample}.sorted.bam"
-#    output:
-#        fastq1="reads/{sample}_R1.fastq", 
-#        fastq2="reads/{sample}_R2.fastq"
-#    log:
-#        "logs/bam_to_fastq/{sample}.log"
-#    shell:
-#        "bedtools bamtofastq -i {input} -tags -fq {output.fastq1} -fq2 {output.fastq2}"
 
-
-rule temp:
-	input:
-		"sorted_bam/{sample}/{i}.sorted.bam"
-	output:
-		"intermediate/{sample}/{i}.bam"
-	shell:
-		"cp {input} {output}"
+rule bwa_mem:
+    input:
+        reads=["reads/{sample}/{i}_R1.fastq", "reads/{sample}/{i}_R2.fastq"]
+    output:
+        "mapped/{sample}/{i}.bam"
+    log:
+        "logs/bwa_mem/{sample}_{i}.log"
+    params:
+        index="/shahlab/pipelines/reference/GRCh37-lite.fa",
+        extra=r"-Y -R '@RG\tID:{i}\tSM:{sample}'",
+        sort="samtools",             # Can be 'none', 'samtools' or 'picard'.
+        sort_order="coordinate",  # Can be 'queryname' or 'coordinate'.
+        sort_extra="",            # Extra args for samtools/picard.
+        mem="10.G",
+        cpus="20" 
+    threads: 20 
+    wrapper:
+        "file:/shahlab/sbeatty/software/yvr_pipelines/realign/wrappers/bwa_mem"
 
 def get_samples_and_readgroups(wildcards):
     checkpoint_output = checkpoints.RG_splitting.get(**wildcards).output[0]
-    return expand("intermediate/{sample}/{i}.bam", sample = wildcards.sample, i = glob_wildcards(os.path.join(checkpoint_output,"{i}.bam")).i)   
+    return expand("mapped/{sample}/{i}.bam", sample = wildcards.sample, i = glob_wildcards(os.path.join(checkpoint_output,"{i}.bam")).i)   
 
 rule merge:
     input:
         get_samples_and_readgroups
     output:
-        "aggregated/{sample}.bam"
+        "bwa_mem/{sample}.bwa_mem.bam"
+    params:
+        mem="100.G",
+        cpus="1" 
     log:
-    	"log/{sample}.log"
+        "log/{sample}.log"
     run:
-        shell("echo {input}")
-        shell("touch {output}")
+        inputs = " ".join("INPUT={}".format(in_) for in_ in input)
+        command = "java -jar //gsc/software/linux-x86_64-centos6/picardtools-2.4.1/picard.jar MergeSamFiles " + inputs + " OUTPUT=" + output[0] + " SORT_ORDER=coordinate"
+        shell(command)
+
+rule flagstat_post_merge:
+    input:
+        "bwa_mem/{sample}.bwa_mem.bam"
+    output:
+        "flagstat/{sample}.merged_bam.flagstat.tsv"
+    params:
+        mem="10.G",
+        cpus="10" 
+    shell:
+        "samtools flagstat  -@ {params.cpus} {input} > {output}"
+
+rule samtools_sort:
+    input:
+        "bwa_mem/{sample}.bwa_mem.bam"
+    output:
+        "bwa_mem_sorted/{sample}.bwa_mem.bam"
+    params:
+        mem="100.G",
+        cpus="1" 
+    shell:
+        "samtools sort -T bwa_mem/{wildcards.sample} -@ {params.cpus} -O bam -o {output} {input}"
+
+
+rule mark_duplicates:
+    input:
+        "bwa_mem_sorted/{sample}.bwa_mem.bam"
+    output:
+        bam="realigned/{sample}.bwa_mem.dedup.bam",
+        metrics="realigned/{sample}.metrics.txt"
+    log:
+        "logs/picard/realigned/{sample}.log"
+    params:
+        mem="100.G",
+        cpus="1" 
+    shell:
+        "/shahlab/pipelines/apps_centos6/jdk1.8.0_51/bin/java -jar /shahlab/pipelines/apps_centos6/picard-tools-1.119/MarkDuplicates.jar I={input} OUTPUT={output.bam} M={output.metrics}"
+
+#"java -jar /shahlab/pipelines/apps_centos6/picard-tools-1.141/picard.jar MarkDuplicates I={input} OUTPUT={output.bam} M={output.metrics}"
+
+##4) samtools index
+rule samtools_index_final:
+    input:
+        "realigned/{sample}.bwa_mem.dedup.bam"
+    output:
+        "realigned/{sample}.bwa_mem.dedup.bam.bai"
+    params:
+        mem="8.G",
+        cpus="20" 
+        "" # optional params string
+    shell:
+        "samtools index -@ {params.cpus} {input} {output}"
+
+

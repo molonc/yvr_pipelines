@@ -105,7 +105,7 @@ args <- str_split(args," ") %>% unlist
 }
 cores <- args[str_detect(args,"--cores")] %>% str_replace("--cores=","")
 if(length(cores) == 0){
-  cores <- 1
+  cores <- 40
 } else {
   cores <- as.numeric(cores)
 }
@@ -185,13 +185,14 @@ if(load_parsed_reference_data == FALSE){
 # converting a single tab (ex INFO) is very slow
 # function below is > 1000x fold faster
 
- source("/scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/core_functions.R")
+source("/scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/core_functions.R")
 
 if(target_file_type == "vcf"){
   target_dat <- readVcf(paste(target_file), genome="hg19")
+  target_dat <- expand(target_dat)
   caller <- ".variant_caller"
   target_dat_ranges <- target_dat
-  target_dat_df <- genome_range_to_dataframe(target_dat, extract_reads=TRUE)
+  target_dat_df <- vcf_to_dataframe(target_dat, extract_reads=TRUE, core_count=40)
   names(target_dat_df) <- gsub("stop", "end", names(target_dat_df))
   target_dat_df[,"genecode_gene_name"] <- NA
   target_dat_df[,"genecode_strand"] <- NA

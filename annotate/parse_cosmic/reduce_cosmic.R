@@ -96,9 +96,7 @@ alts <- mcmapply(mutations,USE.NAMES=FALSE, FUN=function(x){split_variant(x, "al
 
 cosmic_data[,"ref"] <- refs
 cosmic_data[,"alt"] <- alts
-
-
-cosmic_data_reduced <- cosmic_data %>% group_by(chr, start, end, Mutation.strand, GENOMIC_MUTATION_ID, Genome.wide.screen, parsed_mutation_type, ref, alt)
+cosmic_data_reduced <- cosmic_data %>% group_by(chr, start, end, Mutation.strand, GENOMIC_MUTATION_ID, Genome.wide.screen, parsed_mutation_type, ref, alt,  FATHMM.prediction, FATHMM.score)
 #rm(cosmic_data)
 cosmic_data_reduced <- cosmic_data_reduced %>%  summarize(n=n())
 cosmic_data_reduced <- cosmic_data_reduced %>%  pivot_wider(names_from=Genome.wide.screen, values_from = n) 
@@ -111,7 +109,7 @@ cosmic_data_reduced[is.na(cosmic_data_reduced$n), "n"] <- 0
 cosmic_data_reduced[is.na(cosmic_data_reduced$Y), "y"] <- 0
 cosmic_data_reduced[,"cosmic_patients_total"] <- cosmic_data_reduced[,"n"] + cosmic_data_reduced[,"y"]
 cosmic_data_reduced[,"cosmic_patients_gwas"] <- cosmic_data_reduced["y"]
-cosmic_data_reduced <- cosmic_data_reduced[,c("chr","start","end", "Mutation.strand", "GENOMIC_MUTATION_ID", "parsed_mutation_type", "ref", "alt","cosmic_patients_total", "cosmic_patients_gwas")]
+cosmic_data_reduced <- cosmic_data_reduced[,c("chr","start","end", "FATHMM.prediction", "FATHMM.score", "Mutation.strand", "GENOMIC_MUTATION_ID", "parsed_mutation_type", "ref", "alt","cosmic_patients_total", "cosmic_patients_gwas")]
 fwrite(cosmic_data_reduced, file=paste(output_file))
 
 

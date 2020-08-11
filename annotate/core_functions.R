@@ -1,5 +1,5 @@
 
-genome_range_to_dataframe <- function(genome_range, extract_reads=FALSE){
+genome_range_to_dataframe <- function(genome_range, core_count=10,extract_reads=FALSE){
   print(extract_reads)
   df <- genome_range
   df_rowRanges <- rowRanges(df)
@@ -11,23 +11,67 @@ genome_range_to_dataframe <- function(genome_range, extract_reads=FALSE){
   strand_info <- as.character(df_rowRanges@strand)
   df_paramRangeID <- as.character(df_elementMetadata[,"paramRangeID"])
   df_REF <- as.character(df_elementMetadata[,"REF"])
-  df_ALT <- rownames(df_elementMetadata) %>% str_sub(start=-1) %>% as.character
+  #df_ALT <-  mcmapply(df_elementMetadata$ALT, FUN=function(x){as.character(x[[1]])}, mc.cores=core_count)
   df_QUAL <- as.character(df_elementMetadata[,"QUAL"])
   df_FILTER <- as.character(df_elementMetadata[,"FILTER"])
   if(extract_reads == FALSE){
   df_out <- data.frame(chr=df_seqnames, pos=range_start, start = range_start,
     end=range_end, width=range_width, strand=strand_info,
-    paramRangeID=df_paramRangeID, REF=df_REF, ALT=df_ALT, QUAL=df_QUAL, Filter=df_FILTER)
+    paramRangeID=df_paramRangeID, REF=df_REF, QUAL=df_QUAL, Filter=df_FILTER)
   } else {
     geno_AD <- geno(df)$AD
     reference_reads <-  mapply(geno_AD,FUN=function(x){unlist(x)[1]})
     alternative_reads <-  mapply(geno_AD,FUN=function(x){unlist(x)[2]})
     df_out <- data.frame(chr=df_seqnames, pos=range_start, start = range_start,
     end=range_end, width=range_width, strand=strand_info,
+    paramRangeID=df_paramRangeID, REF=df_REF, reference_reads=reference_reads, alternative_reads=alternative_reads,QUAL=df_QUAL, Filter=df_FILTER)
+  }
+  df_out
+}
+
+get_a_gencode_info_value <- function(gencode_add_info, return_value){
+  add_info_vector <- gencode_add_info  %>% str_split(";") %>% unlist %>% trimws
+  target_value <- add_info_vector[str_detect(add_info_vector, paste(return_value))]
+  if(length(target_value) > 0 & !is.na(target_value) & target_value != ""){
+  target_value <- target_value %>% str_replace(paste0(return_value," "), "")
+  output <- target_value
+  } else {
+    output <- NA
+  }
+  output
+}
+
+vcf_to_dataframe <- function(vcf, core_count=10,extract_reads=FALSE){
+  df <- expand(vcf)
+  df_rowRanges <- rowRanges(df)
+  range_start <- ranges(df)@start
+  range_width <- ranges(df)@width
+  range_end <- c(range_start + range_width) - 1
+  df_seqnames <-  as.character(seqnames(df))
+  df_elementMetadata <- elementMetadata(rowRanges(df))
+  strand_info <- as.character(df_rowRanges@strand)
+  df_paramRangeID <- as.character(df_elementMetadata[,"paramRangeID"])
+  df_REF <- as.character(df_elementMetadata[,"REF"])
+  df_ALT <- alt(target_dat) %>% as.character 
+  df_QUAL <- as.character(df_elementMetadata[,"QUAL"])
+  df_FILTER <- as.character(df_elementMetadata[,"FILTER"])
+  if(extract_reads == FALSE){
+  df_out <- data.frame(chr=df_seqnames, pos=range_start, start = range_start,
+    end=range_end, width=range_width, strand=strand_info,
+    paramRangeID=df_paramRangeID, REF=df_REF, ALT=df_ALT,  QUAL=df_QUAL, Filter=df_FILTER)
+  } else {
+    geno_AD <- geno(df)$AD
+    reference_reads <-  geno(df)$AD[,,1]
+    alternative_reads <-  geno(df)$AD[,,2]
+    df_out <- data.frame(chr=df_seqnames, pos=range_start, start = range_start,
+    end=range_end, width=range_width, strand=strand_info,
     paramRangeID=df_paramRangeID, REF=df_REF, ALT=df_ALT, reference_reads=reference_reads, alternative_reads=alternative_reads,QUAL=df_QUAL, Filter=df_FILTER)
   }
   df_out
 }
+
+
+
 
 invert_snv <- function(x, nucleotides_positive_strand=c("a", "g", "c", "t", "A", "G", "C", "T"), nucleotides_positive_negative=c("t","c", "g", "ad", "T", "C", "G", "A")){
   if(x %in% nucleotides_positive_strand){
