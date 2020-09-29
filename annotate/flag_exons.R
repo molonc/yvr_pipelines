@@ -2,7 +2,7 @@
 .libPaths("/ssd/sda1/sbeatty/software/miniconda3/lib/R/library")
 
 options(echo=TRUE)
-options(verbose=TRUE)
+options(verbose=FALSE)
 args = commandArgs(trailingOnly=TRUE)
 
 require("stringr", quietly=TRUE)
@@ -99,15 +99,14 @@ if(length(which(str_detect(args, "--end_name") == TRUE)) == 1){
 
 # load reference data
 
-gencode_reference <- fread("/shahlab/archive/misc/sbeatty/reference/gencode.v19.annotation.gtf_withproteinids", skip=5, data.table=FALSE,
+gencode_reference <- fread("//projects/molonc/aparicio_lab/sbeatty/reference/gencode.v19.annotation.gtf_withproteinids", skip=5, data.table=FALSE,
   col.names=c("chromosome", "source", "feature_type","start","stop", "score", "strand", "phase", "add_info"), colClasses=gencode_column_types_for_fread)
-gencode_reference_exons <- filter(gencode_reference, feature_type=="exon")
+#gencode_reference_exons <- filter(gencode_reference, feature_type=="exon")
 
-# remove non-relevant data to reduce memory use
-rm(gencode_reference)
-gencode_reference_exons$chromosome <- gsub("chr","", gencode_reference_exons$chromosome)
-gencode_reference_exons$add_info <- gsub(regex('\\"'),"",gencode_reference_exons$add_info)
-gencode_ranges <-  makeGRangesFromDataFrame(data.frame(gencode_reference_exons), 
+
+gencode_reference$chromosome <- gsub("chr","", gencode_reference$chromosome)
+gencode_reference$add_info <- gsub(regex('\\"'),"",gencode_reference$add_info)
+gencode_ranges <-  makeGRangesFromDataFrame(data.frame(gencode_reference), 
          seqnames.field ="chromosome" , start.field="start", end.field="stop", 
       keep.extra.columns=TRUE)
 
@@ -145,8 +144,13 @@ sample_data_ranges <- makeGRangesFromDataFrame(sample_data_df,
        seqnames.field =chr_name , start.field=start_name, end.field=end_name, keep.extra.columns=TRUE)
 
 overlaps <- findOverlaps(sample_data_ranges, gencode_ranges, type="any")
-sample_data_df[,"is_exon"] <- NA
+sample_data_df[,"gencode_feature_type"] <- NA
+sample_data_df[,"gencode_add_info"] <- NA
+
 if(length(overlaps) > 0){
-  sample_data_df[c(overlaps@from %>% unique),"is_exon"] <- TRUE
+  #sample_data_df[c(overlaps@from %>% unique),"is_exon"] <- TRUE
+  sample_data_df[,"gencode_feature_type"][overlaps@from] <- gencode_reference$feature_type[overlaps@to]
+  sample_data_df[,"gencode_add_info"][overlaps@from] <- gencode_reference$add_info[overlaps@to]
+
  } 
 fwrite(sample_data_df, file=output_file)

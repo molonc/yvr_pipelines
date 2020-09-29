@@ -88,7 +88,7 @@ c(
 )
 
 
-source("/scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/core_functions.R")
+source("/projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/core_functions.R")
 
 target_file <- args[str_detect(args,"--targetfile")] %>% str_replace("--targetfile=","")
 output_file <- args[str_detect(args,"--outputfile")] %>% str_replace("--outputfile=","")

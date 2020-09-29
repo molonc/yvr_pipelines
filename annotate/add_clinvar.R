@@ -2,7 +2,6 @@
 # caveats will match clinvar indels that are the same length as the sample indels. SNV matches are exact. 
 # in cases where clinvar has a different reference variant than the sample 
 # reference, and the variants are 1 bp, the clinvar match will be ignored
-.libPaths("/ssd/sda1/sbeatty/software/miniconda3/lib/R/library")
 options(echo=TRUE)
 options(verbose=FALSE)
 require("stringr", quietly=TRUE)
@@ -100,7 +99,7 @@ clinvar_column_specs <- cols(
 )
 
 if(length(args) == 0){
-args <- "Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile=/scratch/shahlab_tmp/sbeatty/ind231/clinvar_in/GERM_STRE_INDEL_SA1228T.vcf.gz --outputfile=clinvar_added/GERM_STRE_INDEL_SA1228T.clinvar.csv --loadreference=TRUE"
+args <- "Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile=//projects/molonc/aparicio_lab/sbeatty/IND/IND-20/pair_muta/SA1284T.TASK_8_PARSE_museq_parsed.tsv --outputfile=test.csv --loadreference=FALSE"
 args <- str_split(args," ") %>% unlist
 }
 cores <- args[str_detect(args,"--cores")] %>% str_replace("--cores=","")
@@ -137,7 +136,7 @@ if(load_parsed_reference_data == TRUE & c( !file.exists("/scratch/shahlab_tmp/sb
 
 
 if(load_parsed_reference_data == FALSE){
-  clinvar_reference_dat <- read_tsv("/shahlab/archive/misc/sbeatty/reference/variant_summary.txt", col_types=clinvar_column_specs)
+  clinvar_reference_dat <- read_tsv("//projects/molonc/aparicio_lab/sbeatty/reference/variant_summary.txt", col_types=clinvar_column_specs)
   clinvar_reference_dat <- clinvar_reference_dat[c(clinvar_reference_dat[,"Assembly"] == "GRCh37"),] %>% data.frame
  
 # elminate records with a start position less than zero. As of April 21
@@ -160,7 +159,7 @@ if(load_parsed_reference_data == FALSE){
   }
 
   # five rows are skipped in order to skip the gtf header
-  gencode_reference_dat <- read_tsv("/shahlab/archive/misc/sbeatty/reference/gencode.v19.annotation.gtf_withproteinids", skip=5, col_names=FALSE,quote="XXX", col_types=gencode_reference_col_types)
+  gencode_reference_dat <- read_tsv("/projects/molonc/aparicio_lab/sbeatty/reference/gencode.v19.annotation.gtf_withproteinids", skip=5, col_names=FALSE,quote="XXX", col_types=gencode_reference_col_types)
   names(gencode_reference_dat) <- c("chr", "source", "feature_type","start","stop", "score", "strand", "phase", "add_info")
   gencode_reference_dat$chr <- gsub("chr","", gencode_reference_dat$chr)
   gencode_reference_dat$add_info <- gsub(regex('\\"'),"",gencode_reference_dat$add_info)
@@ -169,23 +168,23 @@ if(load_parsed_reference_data == FALSE){
   
   gencode_reference_dat_ranges <-    makeGRangesFromDataFrame(data.frame(gencode_reference_dat),seqnames.field ="chr" , start.field="start", end.field="stop", keep.extra.columns=TRUE)
 
-  save(clinvar_reference_dat_ranges,file="/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")
-  save(clinvar_reference_dat, file="/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat.Rdata")
-  save(gencode_reference_dat, file="/scratch/shahlab_tmp/sbeatty/reference/genecode_reference.Rdata")
-  save(gencode_reference_dat_ranges, file="/scratch/shahlab_tmp/sbeatty/reference/gencode_reference_dat_ranges.Rdata")
+  save(clinvar_reference_dat_ranges,file="/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")
+  save(clinvar_reference_dat, file="/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat.Rdata")
+  save(gencode_reference_dat, file="/projects/molonc/aparicio_lab/sbeatty/reference/genecode_reference.Rdata")
+  save(gencode_reference_dat_ranges, file="/projects/molonc/aparicio_lab/sbeatty/reference/gencode_reference_dat_ranges.Rdata")
 
 } else {
-  load("/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")
-  load("/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat.Rdata")
-  load("/scratch/shahlab_tmp/sbeatty/reference/genecode_reference.Rdata")
-  load("/scratch/shahlab_tmp/sbeatty/reference/gencode_reference_dat_ranges.Rdata")
+  load("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")
+  load("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat.Rdata")
+  load("/projects/molonc/aparicio_lab/sbeatty/reference/genecode_reference.Rdata")
+  load("/projects/molonc/aparicio_lab/sbeatty/reference/gencode_reference_dat_ranges.Rdata")
 }
 
 # conversion from vcf object to a data frame even when only 
 # converting a single tab (ex INFO) is very slow
 # function below is > 1000x fold faster
 
-source("/scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/core_functions.R")
+source("/projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/core_functions.R")
 
 if(target_file_type == "vcf"){
   target_dat <- readVcf(paste(target_file), genome="hg19")
