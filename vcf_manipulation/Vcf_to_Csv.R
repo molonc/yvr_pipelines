@@ -48,20 +48,6 @@ spread_row <- function(row_i){
 }
 
 
-spread_row_no_format <- function(row_i){
-	info_tag_value_and_names <-  row_i[,"INFO"] %>% str_split(";") %>% unlist
-	info_tag_names <- mapply(info_tag_value_and_names, USE.NAMES=FALSE, FUN=function(x){str_split(x,"=")[[1]][1]})
-	info_tag_values <- mapply(info_tag_value_and_names, USE.NAMES=FALSE, FUN=function(x){str_split(x,"=")[[1]][2]})
-
-	spread_row <- tidyr::separate(row_i,col="INFO",sep=";", into=info_tag_names, remove=TRUE) 
-	for(tag in info_tag_names){
-		spread_row[,tag] <- spread_row[,tag]  %>% str_replace_all(.,paste0(tag,"="),"")
-	}
-	spread_row
-}
-
-
-
 if(nrow(tsv) > 0){
 	spread_rows <- lapply(1:nrow(tsv), FUN=function(x){spread_row(tsv[x,])})
 	output_dataframe <- bind_rows(spread_rows)
