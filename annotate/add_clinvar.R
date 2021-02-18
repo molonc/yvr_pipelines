@@ -99,7 +99,7 @@ clinvar_column_specs <- cols(
 )
 
 if(length(args) == 0){
-args <- "Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile=//projects/molonc/aparicio_lab/sbeatty/IND/IND-20/pair_muta/SA1284T.TASK_8_PARSE_museq_parsed.tsv --outputfile=test.csv --loadreference=FALSE"
+args <- "Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile=/projects/molonc/aparicio_lab/sbeatty/BXE/BXE-264/fix_task6_headers/table/SA607_3T.PAIR_STRE_INDEL.TASK_10_STRELKA_FLAG_COSMIC_INDL_strelka.passed.somatic.indels.annotSnpEff.annotMA.flagDBsnp.flag1000gen.flagCosmic.fixed_header.remove.low.qual.tsv --outputfile=clinvar_added/SA607_3T.PAIR_STRE_INDEL.clinvar.csv --cores=10 --loadreference=TRUE"
 args <- str_split(args," ") %>% unlist
 }
 cores <- args[str_detect(args,"--cores")] %>% str_replace("--cores=","")
@@ -127,10 +127,10 @@ if(length(load_parsed_reference_data) == 0){
   load_parsed_reference_data <- FALSE
 }
 
-if(load_parsed_reference_data == TRUE & c( !file.exists("/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat_ranges.Rdata") |
-  !file.exists("/scratch/shahlab_tmp/sbeatty/reference/clinvar_reference_dat.Rdata") |
-  !file.exists("/scratch/shahlab_tmp/sbeatty/reference/genecode_reference.Rdata") |
-  !file.exists("/scratch/shahlab_tmp/sbeatty/reference/gencode_reference_dat_ranges.Rdata") )){
+if(load_parsed_reference_data == TRUE & c( !file.exists("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat_ranges.Rdata") |
+  !file.exists("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat.Rdata") |
+  !file.exists("/projects/molonc/aparicio_lab/sbeatty/reference/genecode_reference.Rdata") |
+  !file.exists("/projects/molonc/aparicio_lab/sbeatty/reference/gencode_reference_dat_ranges.Rdata") )){
   load_parsed_reference_data <- FALSE
 }
 
@@ -174,10 +174,10 @@ if(load_parsed_reference_data == FALSE){
   save(gencode_reference_dat_ranges, file="/projects/molonc/aparicio_lab/sbeatty/reference/gencode_reference_dat_ranges.Rdata")
 
 } else {
-  load("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")
-  load("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat.Rdata")
-  load("/projects/molonc/aparicio_lab/sbeatty/reference/genecode_reference.Rdata")
-  load("/projects/molonc/aparicio_lab/sbeatty/reference/gencode_reference_dat_ranges.Rdata")
+  print(system.time(load("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat_ranges.Rdata")))
+  print(system.time(load("/projects/molonc/aparicio_lab/sbeatty/reference/clinvar_reference_dat.Rdata")))
+  print(system.time(load("/projects/molonc/aparicio_lab/sbeatty/reference/genecode_reference.Rdata")))
+  print(system.time(load("/projects/molonc/aparicio_lab/sbeatty/reference/gencode_reference_dat_ranges.Rdata")))
 }
 
 # conversion from vcf object to a data frame even when only 
@@ -198,9 +198,18 @@ if(target_file_type == "vcf"){
 } else if (target_file_type == "tsv"){
   caller <- ".variant_caller"
   target_dat_df <- read_tsv(paste(target_file), col_types=tsv_column_spec)
+  #target_dat_df <- fread(paste(target_file))
   target_dat_df <- target_dat_df %>% data.frame
-    names(target_dat_df) <- gsub("chromosome", "chr", names(target_dat_df))
+    names(target_dat_df) <- gsub("chromosome", "chr", names(target_dat_df)) 
+    names(target_dat_df) <- gsub("CHROM", "chr", names(target_dat_df)) 
     names(target_dat_df) <- gsub("stop", "end", names(target_dat_df))
+    names(target_dat_df) <- gsub("POS", "start", names(target_dat_df))
+    
+    if(length(which(names(target_dat_df) %in% c("stop", "end") == TRUE)) == 0)
+    {
+      target_dat_df[,"end"] <- target_dat_df[,"start"] 
+      target_dat_df[,"end"] <- as.numeric(target_dat_df[,"end"]) + c(nchar(target_dat_df[,"REF"])-1)
+    }
     target_dat_df[,"genecode_gene_name"] <- NA
   target_dat_df[,"genecode_strand"] <- NA
   target_dat_df <- target_dat_df[!is.na(target_dat_df$chr),]
@@ -222,7 +231,7 @@ gencode_matches <- findOverlaps(target_dat_ranges, gencode_reference_dat_ranges,
 target_dat_df[,"genecode_gene_name"][gencode_matches@from] <- gencode_reference_dat_ranges$genecode_gene_name[gencode_matches@to]
 target_dat_df[,"genecode_strand"][gencode_matches@from] <- gencode_reference_dat_ranges$gencode_strand[gencode_matches@to]
 
-clin_var_matches <- findOverlaps(target_dat_ranges, clinvar_reference_dat_ranges, type="equal") %>% data.frame
+clin_var_matches <- findOverlaps(target_dat_ranges, clinvar_reference_dat_ranges, type="any") %>% data.frame
 
 target_ref_column <- names(target_dat_df)[str_detect(names(target_dat_df) %>% toupper,"REF")][1]
 target_alt_column <- names(target_dat_df)[str_detect(names(target_dat_df) %>% toupper,"ALT")][1]
