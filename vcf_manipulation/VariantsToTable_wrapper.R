@@ -9,7 +9,7 @@ require("dplyr", quietly=TRUE)
 args = commandArgs(trailingOnly=TRUE)
 
 if(length(args) == 0){
-	args <- "Rscript /projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/vcf_manipulation/VariantsToTable_wrapper.R --target_file=input_vcfs/SA1284T.SING_STRE.vcf.gz --output_file=test.tsv -—gatk_command_path=/projects/molonc/aparicio_lab/sbeatty/software/gatk-4.1.8.1/gatk"
+	args <- "Rscript /projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/vcf_manipulation/VariantsToTable_wrapper.R --target_file=/projects/molonc/aparicio_lab/sbeatty/IND/IND-31/final_vcf_fixed/303566T.SING_STRE.vcf --output_file=303566T.SING_STRE.gatk.tsv -—gatk_command_path=/projects/molonc/aparicio_lab/sbeatty/software/gatk-4.1.8.1/gatk"
 	args <- str_split(args," ") %>% unlist
 }
 
@@ -45,7 +45,7 @@ tags <- tags  %>% paste("-F",.) %>% paste(collapse=" ")
 GATK_command_call <- paste("/projects/molonc/aparicio_lab/sbeatty/software/gatk-4.1.8.1/gatk VariantsToTable -V", target_file_path,"--show-filtered", tags,"-O", output_file_path)
 print(GATK_command_call)
 system(paste(GATK_command_call))
-system(paste("/projects/molonc/aparicio_lab/sbeatty/software/gatk-4.1.8.1/gatk VariantsToTable -V", target_file_path,"--show-filtered", tags,"-O test_vanilla.tsv"))
+#system(paste("/projects/molonc/aparicio_lab/sbeatty/software/gatk-4.1.8.1/gatk VariantsToTable -V", target_file_path,"--show-filtered", tags,"-O test_vanilla.tsv"))
 
 #system("/projects/molonc/aparicio_lab/sbeatty/software/gatk-4.1.8.1/gatk VariantsToTable -V /projects/molonc/aparicio_lab/sbeatty/IND/IND-31/annotate_task6/filter_low_qual/SA1284T.SING_STRE.fixed_header.remove.low.qual.vcf --show-filtered -F CHROM -F POS -F ID -F REF -F ALT -F QUAL -F FILTER -F INFO -F FORMAT -F SA1284T -F END -F BLOCKAVG_min30p3a -F SNVHPOL -F CIGAR -F RU -F REFREP -F IDREP -F MQ -F EVENTLENGTH -F TRANSITION -F HET -F HOM-REF -F HOM-VAR -F NO-CALL -F TYPE -F VAR -F NSAMPLES -F NCALLED -F MULTI-ALLELIC -O vanilla_test.tsv")
 

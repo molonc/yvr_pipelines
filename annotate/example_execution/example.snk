@@ -1,74 +1,55 @@
 import pandas as pd
 import os
 
+file_list = pd.read_csv("//projects/molonc/aparicio_lab/sbeatty/BIOF/BIOF-286/filemanifest.csv")
+file_list = file_list['x']
+file_list = file_list.str.replace("\\./","//projects/molonc/aparicio_lab/sbeatty/BIOF/BIOF-286/tyler_data_transfer/biof286/")
 
-file_list = ["/path/to/file1.tsv","/path/to/file2.tsv"]
+file_basenames = [os.path.basename(file_i) for file_i in file_list]
+files = pd.Series(file_basenames)
 
-SAMPLES = ["SA001","SA001"] # unique sample names from the file path
+file_basenames = [os.path.basename(file_i) for file_i in file_list]
+samples =  [file_i.split(".")[0] for file_i in file_basenames]
 
-in_names_dict = dict(zip(SAMPLES, file_list))
-
-
-def remove_ext(mystring):  
-	mystring = mystring.replace("vcf.gz","vcf")
-	extension = os.path.splitext(mystring)[1]
-	return mystring.replace(extension, "")
-
+input_path_dict= dict(zip(samples, file_list))
 
 rule all:
 	input:
-		expand("cleaned/{sample}.clinvar.cosmic.exons.filtered.cleaned.csv", sample=["SA001","SA002"])
+		expand("annotated/{sample_expand}.clinvar.cosmic.exons.csv", sample_expand=samples)
+
+#rule copy_in:
+#	input:
+#		
+#	output:
+#		"softlink_input_files/{sample}.vcf"
+#	resources:
+#		mem_per_cpu=3000,
+#		cpus=1
+#	run:
+#		shell("echo 'ln -s {input} {output}'")
+#		shell("ln -s {input} {output}")
+
 rule annotate:
 	input:
-		lambda wildcards: in_names_dict[wildcards.sample]
-	params:
-		mem="40.G",
-		cpus="1" 
+		lambda wildcards: input_path_dict[wildcards.sample]
 	output:
-		"clinvar_added/{sample}.clinvar.csv"
+		temp("clinvar_added/{sample}.clinvar.csv")
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile={input} --outputfile={output} --cores=10 --loadreference=TRUE")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile={input} --outputfile={output} --cores=10 --loadreference=TRUE")
+
 rule add_cosmic:
 	input:
 		sample_data="clinvar_added/{sample}.clinvar.csv",
-		reference_data="/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
+		reference_data="/projects/molonc/aparicio_lab/sbeatty/reference/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
 	output:
-		"cosmic_added/{sample}.clinvar.cosmic.csv"
-	params:
-		mem="5.0G",
-		cpus="20" 
+		temp("cosmic_added/{sample}.clinvar.cosmic.csv")
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/add_cosmic.R --targetfile={input.sample_data} --outputfile={output} --cosmic_reference_file={input.reference_data}")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/add_cosmic.R --targetfile={input.sample_data} --outputfile={output} --cosmic_reference_file={input.reference_data}")
+
 rule flag_exons:
 	input:
 		"cosmic_added/{sample}.clinvar.cosmic.csv"
 	output:
-		"exons_flagged/{sample}.clinvar.cosmic.exons.csv"
-	params:
-		mem="5.0G",
-		cpus="20" 
+		"annotated/{sample}.clinvar.cosmic.exons.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/flag_exons.R --target_file={input} --outputfile={output}")
-
-rule filter:
-	input:
-		"exons_flagged/{sample}.clinvar.cosmic.exons.csv"
-	output:
-		"filtered/{sample}.clinvar.cosmic.exons.filtered.csv"
-	params:
-		mem="9.0G",
-		cpus="20" 
-	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/FIT-81/scripts/filter.R --targetfile={input} --outputfile={output} --cpu_count={params.cpus}")
-
-rule clean:
-	input:
-		"filtered/{sample}.clinvar.cosmic.exons.filtered.csv"
-	output:
-		"cleaned/{sample}.clinvar.cosmic.exons.filtered.cleaned.csv"
-	params:
-		mem="8.0G",
-		cpus="20" 
-	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/ind231/scripts/column_parsing.R --target_file={input} --output_file={output} --cpu_count={params.cpus} --chromosome_name=chr --start_name=start --end_name=end")
-
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/flag_exons.R --target_file={input} --outputfile={output}")

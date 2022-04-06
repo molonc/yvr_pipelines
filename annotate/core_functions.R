@@ -1,6 +1,9 @@
 
 genome_range_to_dataframe <- function(genome_range, core_count=10,extract_reads=FALSE){
   print(extract_reads)
+  #genome_range <- target_dat
+  #extract_reads <- TRUE
+  #core_count <- 10
   df <- genome_range
   df_rowRanges <- rowRanges(df)
   range_start <- ranges(df)@start
@@ -40,7 +43,6 @@ get_a_gencode_info_value <- function(gencode_add_info, return_value){
   }
   output
 }
-
 vcf_to_dataframe <- function(vcf, core_count=10,extract_reads=FALSE){
   df <- expand(vcf)
   df_rowRanges <- rowRanges(df)
@@ -52,7 +54,7 @@ vcf_to_dataframe <- function(vcf, core_count=10,extract_reads=FALSE){
   strand_info <- as.character(df_rowRanges@strand)
   df_paramRangeID <- as.character(df_elementMetadata[,"paramRangeID"])
   df_REF <- as.character(df_elementMetadata[,"REF"])
-  df_ALT <- alt(target_dat) %>% as.character 
+  df_ALT <- alt(df) %>% as.character 
   df_QUAL <- as.character(df_elementMetadata[,"QUAL"])
   df_FILTER <- as.character(df_elementMetadata[,"FILTER"])
   if(extract_reads == FALSE){
@@ -69,7 +71,6 @@ vcf_to_dataframe <- function(vcf, core_count=10,extract_reads=FALSE){
   }
   df_out
 }
-
 
 
 
@@ -116,8 +117,8 @@ matches_df[,"query_ref"] <- query_df[matches_df[,"queryHits"],paste(query_ref_al
 matches_df[,"query_alt"] <- query_df[matches_df[,"queryHits"],paste(query_alt_allele_column)] 
 matches_df[,"subject_ref"] <- subject_df[matches_df[,"subjectHits"],paste(subject_ref_allele_column)] 
 matches_df[,"subject_alt"] <- subject_df[matches_df[,"subjectHits"],paste(subject_alt_allele_column)] 
-matches_df[, "subject_alt_inverted"] <- mapply(matches_df$subject_alt, FUN=.invert_nucleotide)
-matches_df[, "subject_ref_inverted"] <- mapply(matches_df$subject_ref, FUN=.invert_nucleotide)
+matches_df[, "subject_alt_inverted"] <- mcmapply(matches_df$subject_alt, FUN=.invert_nucleotide, mc.cores=1)
+matches_df[, "subject_ref_inverted"] <- mcmapply(matches_df$subject_ref, FUN=.invert_nucleotide, mc.cores=1)
 
 if(!is.na(query_strand_column) & !is.na(subject_strand_column)){
   matches_df[,"query_stand"] <- query_df[matches_df[,"queryHits"],paste(query_strand_column)] 
