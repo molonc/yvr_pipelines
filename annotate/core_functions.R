@@ -117,8 +117,8 @@ matches_df[,"query_ref"] <- query_df[matches_df[,"queryHits"],paste(query_ref_al
 matches_df[,"query_alt"] <- query_df[matches_df[,"queryHits"],paste(query_alt_allele_column)] 
 matches_df[,"subject_ref"] <- subject_df[matches_df[,"subjectHits"],paste(subject_ref_allele_column)] 
 matches_df[,"subject_alt"] <- subject_df[matches_df[,"subjectHits"],paste(subject_alt_allele_column)] 
-matches_df[, "subject_alt_inverted"] <- mcmapply(matches_df$subject_alt, FUN=.invert_nucleotide, mc.cores=20)
-matches_df[, "subject_ref_inverted"] <- mcmapply(matches_df$subject_ref, FUN=.invert_nucleotide, mc.cores=20)
+matches_df[, "subject_alt_inverted"] <- mcmapply(matches_df$subject_alt, FUN=.invert_nucleotide, mc.cores=1)
+matches_df[, "subject_ref_inverted"] <- mcmapply(matches_df$subject_ref, FUN=.invert_nucleotide, mc.cores=1)
 
 if(!is.na(query_strand_column) & !is.na(subject_strand_column)){
   matches_df[,"query_stand"] <- query_df[matches_df[,"queryHits"],paste(query_strand_column)] 

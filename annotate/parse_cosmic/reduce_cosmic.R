@@ -1,5 +1,5 @@
 #!/usr/bin/env Rscript
-.libPaths("/ssd/sda1/sbeatty/software/miniconda3/lib/R/library")
+
 
 options(echo=TRUE)
 options(verbose=TRUE)
@@ -10,7 +10,7 @@ library("dplyr")
 library("readr")
 library("VariantAnnotation")
 library("data.table")
-library("tidyr")
+#library("tidyr")
 
 cosmic_reference_fread_col_specs <- c(
 	`chr` = "character",
@@ -62,8 +62,8 @@ output_file <- args[str_detect(args,"--output_file")] %>% str_replace("--output_
 cpu_count <- args[str_detect(args,"--cpu_count")] %>% str_replace("--cpu_count=","")
 
 if(length(args) == 0){
-  target_file <- "/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
-  output_file <- "/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
+  target_file <- "//projects/molonc/aparicio_lab/sbeatty/reference/cosmic_coordinates_added_mutation_types_parsed.csv"
+  output_file <- "//projects/molonc/aparicio_lab/sbeatty/reference/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
   cpu_count <- 35
 }
 setDTthreads(threads=cpu_count)

@@ -14,6 +14,8 @@ require("data.table", quietly=TRUE)
 options(echo=TRUE)
 options(verbose=FALSE)
 args = commandArgs(trailingOnly=TRUE)
+
+require("GenomicRanges", quietly=TRUE)
  
 csv_column_types_for_fread <- 
 c(

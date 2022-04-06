@@ -1,59 +1,59 @@
 import pandas as pd
 import os
 
-#cosmic_reference_data_path = "/scratch/shahlab_tmp/sbeatty/reference/cosmic_sample.tsv"
+#cosmic_reference_data_path = "/projects/molonc/aparicio_lab/sbeatty/reference/cosmic_sample.tsv"
 
-cosmic_reference_data_path = "/scratch/shahlab_tmp/sbeatty/reference/CosmicMutantExport.tsv"
+cosmic_reference_data_path = "/projects/molonc/aparicio_lab/sbeatty/reference/CosmicMutantExport_v92.tsv"
 
 rule all:
 	input:
-		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
+		"reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
 
 rule extract_coordinates_vector:
 	input:
 		cosmic_reference_data_path
-		#"/scratch/shahlab_tmp/sbeatty/reference/cosmic_sample.tsv"
-	params:
-		mem="8.0G",
-		cpus=40,
-		cpu_count="40"
+		#"/projects/molonc/aparicio_lab/sbeatty/reference/cosmic_sample.tsv"
+	resources:
+		mem_mb="8000",
+		cpus=10,
+		cpu_count="10"
 	output:
 		"reference_data/cosmic_coordinates.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_cosmic_coordinates.R --ref_file={input} --outputfile={output} --ncpus={params.cpus} --cpu_count={params.cpu_count}")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_cosmic_coordinates.R --ref_file={input} --outputfile={output} --ncpus={resources.cpus} --cpu_count={resources.cpu_count}")
 
 rule extract_start:
 	input:
 		"reference_data/cosmic_coordinates.csv"
-	params:
-		mem="8.0G",
-		cpus="35"
+	resources:
+		mem_mb="8000",
+		cpus="10"
 	output:
 		"reference_data/cosmic_coordinates_start.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_start_stop_or_chr.R --input_file={input} --outputfile={output} --output_coordinate=start --ncpus={params.cpus}")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_start_stop_or_chr.R --input_file={input} --outputfile={output} --output_coordinate=start --ncpus={resources.cpus}")
 
 rule extract_end:
 	input:
 		"reference_data/cosmic_coordinates.csv"
-	params:
-		mem="8.0G",
-		cpus="35"
+	resources:
+		mem_mb="8000",
+		cpus="10"
 	output:
 		"reference_data/cosmic_coordinates_end.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_start_stop_or_chr.R --input_file={input} --outputfile={output} --output_coordinate=end --ncpus={params.cpus}")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_start_stop_or_chr.R --input_file={input} --outputfile={output} --output_coordinate=end --ncpus={resources.cpus}")
 
 rule extract_chr:
 	input:
 		"reference_data/cosmic_coordinates.csv"
-	params:
-		mem="8.0G",
-		cpus="35"
+	resources:
+		mem_mb="8000",
+		cpus="10"
 	output:
 		"reference_data/cosmic_coordinates_chr.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_start_stop_or_chr.R --input_file={input} --outputfile={output} --output_coordinate=chr --ncpus={params.cpus}")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/parse_cosmic/extract_start_stop_or_chr.R --input_file={input} --outputfile={output} --output_coordinate=chr --ncpus={resources.cpus}")
 
 rule merge_parsed_coordinates:
 	input:
@@ -61,35 +61,35 @@ rule merge_parsed_coordinates:
 		starts="reference_data/cosmic_coordinates_start.csv",
 		ends="reference_data/cosmic_coordinates_end.csv",
 		original_cosmic_file= cosmic_reference_data_path
-	params:
-		mem="8.0G",
-		cpus="20"
+	resources:
+		mem_mb="80000",
+		cpus="10"
 	output:
 		"reference_data/cosmic_coordinates_added.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/merge_coordinates_with_cosmic_reference.R --chr_coordinates={input.chrs} --start_coordinates={input.starts} --end_coordinates={input.ends} --cosmic_reference_file={input.original_cosmic_file} --output_file={output}")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/parse_cosmic/merge_coordinates_with_cosmic_reference.R --chr_coordinates={input.chrs} --start_coordinates={input.starts} --end_coordinates={input.ends} --cosmic_reference_file={input.original_cosmic_file} --output_file={output}")
 
 rule parse_cosmic_mutation_types:
 	input:
 		"reference_data/cosmic_coordinates_added.csv"
-	params:
-		mem="8.0G",
-		cpus="40"
+	resources:
+		mem_mb="8000",
+		cpus="10"
 	output:
-		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
+		"reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/simplify_cosmic_variants.R --cosmic_reference_data={input} --cpu_count={params.cpus} --output_file={output}")
-
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/parse_cosmic/simplify_cosmic_variants.R --cosmic_reference_data={input} --cpu_count={resources.cpus} --output_file={output}")
+cpus="20"
 
 rule reduce_cosmic:
 	input:
-		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
-	params:
-		mem="10.0G",
-		cpus="20"
+		"reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
+	resources:
+		mem_mb="20000",
+		cpus="10"
 	output:
-		"/scratch/shahlab_tmp/sbeatty/ind231/reference_data/cosmic_coordinates_added_mutation_types_parsed.csv"
+		"reference_data/cosmic_coordinates_added_mutation_types_parsed_reduced.csv"
 	run:
-		shell("Rscript //scratch/shahlab_tmp/sbeatty/yvr_pipelines/annotate/parse_cosmic/reduce_cosmic.R.R --cosmic_reference_data={input} --cpu_count={params.cpus} --output_file={output}")
+		shell("Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/parse_cosmic/reduce_cosmic.R --cosmic_reference_data={input} --cpu_count={resources.cpus} --output_file={output}")
 
 

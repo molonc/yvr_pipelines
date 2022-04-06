@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-.libPaths("/ssd/sda1/sbeatty/software/miniconda3/lib/R/library")
 
 options(echo=TRUE)
 options(verbose=TRUE)

@@ -1,5 +1,4 @@
 #!/usr/bin/env Rscript
-.libPaths("/ssd/sda1/sbeatty/software/miniconda3/lib/R/library")
 
 options(echo=TRUE)
 options(verbose=TRUE)
@@ -8,7 +7,6 @@ args = commandArgs(trailingOnly=TRUE)
 library("stringr")
 library("dplyr")
 library("readr")
-library("VariantAnnotation")
 library("data.table")
 library("parallel")
 

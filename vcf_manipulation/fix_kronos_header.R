@@ -9,7 +9,7 @@ require("dplyr", quietly=TRUE)
 args = commandArgs(trailingOnly=TRUE)
 
 if(length(args) == 0){
-	args <- "Rscript /projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/vcf_manipulation/fix_kronos_header.R --target_file=SA1262N.SING_MUTA.fixed_header_gatk.vcf --output_file=test.vcf --add_contig_lines=TRUE"
+	args <- "Rscript /projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/vcf_manipulation/fix_kronos_header.R --target_file=/projects/molonc/aparicio_lab/sbeatty/archive/BXE/kronos_task6/SA1139T.PAIR_MUTA.TASK_6_COSMIC_MutationSeq.annotSnpEff.annotMA.flagDBsnp.flag1000gen.flagCosmic.vcf --output_file=fixed_header/SA1139T.PAIR_MUTA.fixed_header.vcf"
 	args <- str_split(args," ") %>% unlist
 }
 
@@ -30,7 +30,7 @@ system(command)
 fields_to_fix <- list(
 	c("Phred-scaled genotype likelihoods>","Phred-scaled genotype likelihoods"),
 	c("#INFO=<ID=GT,Number=1","#FORMAT=<ID=GT,Number=G"),
-	c("#INFO=<ID=PL","#FORMAT=<ID=PL,Number=G"),
+	#c("#INFO=<ID=PL","#FORMAT=<ID=PL,Number=G"),
 	c("#INFO=<ID=DP","#FORMAT=<ID=DP"),
 	c("#INFO=<ID=FT","#FORMAT=<ID=FT"),
 	c("#INFO=<ID=GL,","#FORMAT=<ID=GL,"),

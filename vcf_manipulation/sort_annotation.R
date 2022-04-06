@@ -97,7 +97,7 @@ column_specs <- cols(
 )
 
 if(length(args) == 0){
-	args <- "Rscript /projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/vcf_manipulation/reorder_annoation_columns.R --annotation_file_in=SA1019N.SING_MUTA.annotation_file.fixed_columns.noheader.tsv --annotation_file_out=test.tsv"
+	args <- "Rscript /projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/vcf_manipulation/sort_annotation.R --annotation_file_in=//projects/molonc/aparicio_lab/sbeatty/BXE/BXE-264/annotation_task6/simplified_snpeff/SA1019X1_1L.SING_MUTA.clinvar.PR85.simple_snpeff.csv --annotation_file_out=test.tsv"
 	args <- str_split(args," ") %>% unlist
 }
 
@@ -112,8 +112,12 @@ annotation_file_ext <- annotation_file_in %>% str_split("/") %>% unlist %>%  las
 if(annotation_file_ext == "tsv")
 	{
 		annotation_file <- read_tsv(annotation_file_in, col_types=column_specs)
+    annotation_file[,"chr_modified"] <- annotation_file$chr %>% str_replace_all("Y","24") %>% str_replace_all("X","23")
+    annotation_file <- annotation_file %>% arrange(.,chr_modified, start, end) %>% dplyr::select(-chr_modified)
 	} else if(annotation_file_ext == "csv"){
 		annotation_file <- read_csv(annotation_file_in, col_types=column_specs)
+    annotation_file[,"chr_modified"] <- annotation_file$chr %>% str_replace_all("Y","24") %>% str_replace_all("X","23")
+    annotation_file <- annotation_file %>% arrange(.,chr_modified, start, end) %>% dplyr::select(-chr_modified)
 	} else {
 		print("error reading annotation file extension")
 		q()
@@ -131,4 +135,4 @@ annotation_file <- annotation_file %>% rename(CHROM=chr, FROM=start, TO=end)
 annotation_file <- annotation_file %>% relocate("TO") %>% relocate("FROM") %>% relocate("CHROM")
 
 names(annotation_file)[1] <- "#CHROM"
-write_tsv(annotation_file, annotation_file_out, col_names=TRUE)
+write_csv(annotation_file, annotation_file_out, col_names=TRUE)

@@ -10,6 +10,9 @@ require("dplyr", quietly=TRUE)
 require("parallel", quietly=TRUE)
 require("VariantAnnotation", quietly=TRUE)
 require("data.table", quietly=TRUE)
+require("GenomicRanges", quietly=TRUE)
+
+
 
 args = commandArgs(trailingOnly=TRUE)
 
@@ -99,7 +102,7 @@ clinvar_column_specs <- cols(
 )
 
 if(length(args) == 0){
-args <- "Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile=/projects/molonc/aparicio_lab/sbeatty/BXE/BXE-264/fix_task6_headers/table/SA607_3T.PAIR_STRE_INDEL.TASK_10_STRELKA_FLAG_COSMIC_INDL_strelka.passed.somatic.indels.annotSnpEff.annotMA.flagDBsnp.flag1000gen.flagCosmic.fixed_header.remove.low.qual.tsv --outputfile=clinvar_added/SA607_3T.PAIR_STRE_INDEL.clinvar.csv --cores=10 --loadreference=TRUE"
+args <- "Rscript //projects/molonc/aparicio_lab/sbeatty/yvr_pipelines/annotate/add_clinvar.R --targetfile=/snackwell.tsv --outputfile=clinvar_added/SA607_3T.PAIR_STRE_INDEL.clinvar.csv --cores=10 --loadreference=TRUE"
 args <- str_split(args," ") %>% unlist
 }
 cores <- args[str_detect(args,"--cores")] %>% str_replace("--cores=","")
@@ -253,7 +256,7 @@ if(nrow(clin_var_matches) > 0){
   names(target_dat_df) <- substitute_column_name("end", "end.variant_caller", target_dat_df)
   names(target_dat_df) <- substitute_column_name("chr", "chr.variant_caller", target_dat_df)
 
-  target_dat_clinvar_df <- left_join(data.frame(target_dat_df), data.frame(clinvar_reference_dat), by="unique_id", suffix=c(paste(caller),"clinvar"), KEEP=TRUE)
+  target_dat_clinvar_df <- dplyr::left_join(data.frame(target_dat_df), data.frame(clinvar_reference_dat), by="unique_id", suffix=c(paste(caller),"clinvar"), KEEP=TRUE)
   } else {
     target_dat_clinvar_df <- target_dat_df
   }
